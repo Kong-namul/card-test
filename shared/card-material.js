@@ -11,11 +11,15 @@
 //                     무늬 없는 종이는 흐려지면 가장자리만 퍼지니까, 이걸로 카드마다 초점 흐림을 준다 (04)
 //   5) instanceBend : 카드별 추가 휨. bend.js와 같은 식(z = −(b·x² + b·0.35·y²))을 셰이더에서 더한다.
 //                     모양(geometry) 휨은 모든 카드가 같지만, 이건 카드마다 달라서 커서 근처만 휘게 할 수 있다 (04)
+//   6) cardPosFromUv: 둥근 모서리 계산에 쓰는 카드 좌표를 정점 위치 대신 uv에서 읽는다 (기본 끔).
+//                     천처럼 x·y까지 구겨지는 카드(09)는 위치가 바뀌어도 uv는 그대로라 모서리가 카드 모서리에 붙어 있다
+//                     뒤집기의 "몇 번째 줄" 계산도 uv로 한다. 위치로 재면 잡는 점이 가운데가 아닌 카드(09)에서
+//                     맨 윗줄이 1을 넘어 뒤집기 0인데도 살짝 돌아간다 (모서리 가시·윗줄 무늬 휨으로 보였음)
 // ─────────────────────────────────────────────────────────────
 import * as THREE from 'three';
 import { TEXTURE_PRESETS, DEFAULT_PRESET } from './texture-presets.js?v=1';
 
-export function createCardMaterial({ cardWidth, cardHeight, cornerRadius }) {
+export function createCardMaterial({ cardWidth, cardHeight, cornerRadius, cardPosFromUv = false }) {
   const material = new THREE.MeshPhysicalMaterial({
     side: THREE.DoubleSide,           // 뒤집혔을 때 뒷면도 보이게
     iridescenceIOR: 1.3,              // 무지개 박 굴절률
@@ -34,7 +38,7 @@ export function createCardMaterial({ cardWidth, cardHeight, cornerRadius }) {
   material.userData.cardUniforms = uniforms;
 
   // 같은 재질 코드를 다른 재질과 헷갈리지 않게 캐시 이름을 따로 준다
-  material.customProgramCacheKey = () => 'card-instanced-dim-flip-round-soft-bend';
+  material.customProgramCacheKey = () => `card-instanced-dim-flip-round-soft-bend${cardPosFromUv ? '-uvpos' : ''}`;
 
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
@@ -45,6 +49,7 @@ attribute float instanceDim;
 attribute float instanceFlip;
 attribute float instanceSoft;
 attribute float instanceBend;
+uniform float uCardWidth;
 uniform float uCardHeight;
 varying float vInstanceDim;
 varying float vInstanceSoft;
@@ -55,7 +60,9 @@ varying vec2 vCardPos;`)
 objectNormal = normalize(objectNormal + vec3(2.0 * instanceBend * position.x, 0.7 * instanceBend * position.y, 0.0));
 float cardFlipAngle = 0.0;
 {
-  float rowT = position.y / uCardHeight + 0.5;                             // 0=아랫줄, 1=윗줄
+  ${cardPosFromUv
+    ? 'float rowT = uv.y; // 0=아랫줄, 1=윗줄 (구겨지는 카드는 위치가 카드 밖으로 나갈 수 있어 uv로 잰다)'
+    : 'float rowT = position.y / uCardHeight + 0.5; // 0=아랫줄, 1=윗줄'}
   float rowP = clamp((instanceFlip - (1.0 - rowT) * 0.2) / 0.8, 0.0, 1.0); // 아랫줄일수록 늦게 출발
   cardFlipAngle = rowP * 6.28318530718;                                    // 한 바퀴 = 2π
 }
@@ -74,7 +81,9 @@ transformed = vec3(
   -transformed.x * cardFlipSin + transformed.z * cardFlipCos);
 vInstanceDim = instanceDim;
 vInstanceSoft = instanceSoft;
-vCardPos = position.xy; // 휨은 z만 바꾸니까 x·y는 평평한 카드 기준 좌표 그대로`);
+${cardPosFromUv
+  ? 'vCardPos = (uv - 0.5) * vec2(uCardWidth, uCardHeight); // 구겨져도 uv는 그대로 → 평평한 카드 기준 좌표'
+  : 'vCardPos = position.xy; // 휨은 z만 바꾸니까 x·y는 평평한 카드 기준 좌표 그대로'}`);
 
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>

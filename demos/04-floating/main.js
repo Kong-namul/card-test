@@ -6,12 +6,12 @@
 // ─────────────────────────────────────────────────────────────
 import * as THREE from 'three';
 import { createStage, showWebGLFallback, readToken } from '../../shared/stage.js?v=6';
-import { createCardMaterial, syncMaterial, setCornerRadius } from '../../shared/card-material.js?v=6';
+import { createCardMaterial, syncMaterial, setCornerRadius } from '../../shared/card-material.js?v=8';
 import { createCardInstances } from '../../shared/card-geometry.js?v=3';
 import { easeOutCubic, easeInOutCubic, prefersReducedMotion } from '../../shared/motion.js?v=3';
 import { DEFAULT_PRESET, presetToParams } from '../../shared/texture-presets.js?v=1';
 import { createPanel, addSettingsButtons } from '../../shared/panel.js?v=2';
-import { addTextureFolder } from '../../shared/texture-panel.js?v=4';
+import { addTextureFolder } from '../../shared/texture-panel.js?v=6';
 import {
   fieldBox, fieldCount, createField, fieldSlot, createFloatState, stepFloat,
   pushDrag, pushWheel, leanAngles, bob, blurRadius, cursorInfluence, stepSpring, hoverTurn,

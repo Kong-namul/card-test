@@ -9,13 +9,13 @@ import * as THREE from 'three';
 import Lenis from 'lenis';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { createStage, showWebGLFallback, readToken } from '../../shared/stage.js?v=6';
-import { createCardMaterial, syncMaterial, setCornerRadius } from '../../shared/card-material.js?v=6';
+import { createCardMaterial, syncMaterial, setCornerRadius } from '../../shared/card-material.js?v=8';
 import { createCardInstances } from '../../shared/card-geometry.js?v=3';
 import { lerp, damp, smoothstep, easeOutCubic, easeInOutCubic, prefersReducedMotion } from '../../shared/motion.js?v=3';
 import { scrollStages, stackSlot, stackIndexFromRank, STACK_LOOK } from '../../shared/stack-choreography.js?v=3';
 import { DEFAULT_PRESET, presetToParams } from '../../shared/texture-presets.js?v=1';
 import { createPanel, addSettingsButtons } from '../../shared/panel.js?v=2';
-import { addTextureFolder } from '../../shared/texture-panel.js?v=4';
+import { addTextureFolder } from '../../shared/texture-panel.js?v=6';
 import {
   ROW_DEPTH, COMPOSITION, compositionPosition, compositionCardHeight, compositionRanks, settleIn,
   createCosmos, floatOffset, wobbleAngles, glintPosition, depthDim, STAR_LAYERS, createStarLayer,

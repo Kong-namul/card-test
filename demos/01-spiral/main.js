@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { AfterimagePass } from 'three/addons/postprocessing/AfterimagePass.js';
 import Lenis from 'lenis';
 import { createStage, showWebGLFallback, readToken } from '../../shared/stage.js?v=6';
-import { createCardMaterial, syncMaterial, setCornerRadius } from '../../shared/card-material.js?v=6';
+import { createCardMaterial, syncMaterial, setCornerRadius } from '../../shared/card-material.js?v=8';
 import { createCardInstances } from '../../shared/card-geometry.js?v=3';
 import {
   damp, clamp, lerp, easeOutCubic, easeInOutCubic,
@@ -16,7 +16,7 @@ import {
 } from '../../shared/motion.js?v=3';
 import { DEFAULT_PRESET, presetToParams } from '../../shared/texture-presets.js?v=1';
 import { createPanel, addSettingsButtons } from '../../shared/panel.js?v=2';
-import { addTextureFolder } from '../../shared/texture-panel.js?v=4';
+import { addTextureFolder } from '../../shared/texture-panel.js?v=6';
 import { scrollStages, stackSlot, STACK_LOOK } from '../../shared/stack-choreography.js?v=3';
 import { spiralSlot, endFade, windowStart, visibleHalf } from './layout.js?v=6';
 

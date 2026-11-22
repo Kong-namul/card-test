@@ -6,12 +6,12 @@
 // ─────────────────────────────────────────────────────────────
 import * as THREE from 'three';
 import { createStage, showWebGLFallback, readToken, readTokenRGBA } from '../../shared/stage.js?v=6';
-import { createCardMaterial, syncMaterial, setCornerRadius } from '../../shared/card-material.js?v=6';
+import { createCardMaterial, syncMaterial, setCornerRadius } from '../../shared/card-material.js?v=8';
 import { createCardInstances } from '../../shared/card-geometry.js?v=3';
 import { lerp, clamp, easeOutCubic, easeInOutCubic, depthDim, prefersReducedMotion } from '../../shared/motion.js?v=3';
 import { DEFAULT_PRESET, presetToParams } from '../../shared/texture-presets.js?v=1';
 import { createPanel, addSettingsButtons } from '../../shared/panel.js?v=2';
-import { addTextureFolder } from '../../shared/texture-panel.js?v=4';
+import { addTextureFolder } from '../../shared/texture-panel.js?v=6';
 import { tubeSlot, edgeFade, stepTubeMotion, rowSpinFactor } from './layout.js?v=3';
 import { createCurvedGrid } from './grid.js?v=2';
 import { createCrystalButterfly } from './butterfly.js?v=11';

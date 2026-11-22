@@ -2,7 +2,7 @@
 // texture-panel.js — 모든 데모에 똑같이 들어가는 "질감" 패널 폴더
 // 프리셋·광택·거칠기·무지개·카드 색·모서리 R. (휨은 데모마다 적용 방식이 달라서 데모가 직접 붙인다)
 // ─────────────────────────────────────────────────────────────
-import { syncMaterial, setCornerRadius } from './card-material.js?v=6';
+import { syncMaterial, setCornerRadius } from './card-material.js?v=8';
 import { PRESET_NAMES, presetToParams } from './texture-presets.js?v=1';
 import { refreshPanel } from './panel.js?v=2';
 

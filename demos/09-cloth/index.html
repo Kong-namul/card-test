@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>09 천 포스터 · Card Archive</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="../../shared/tokens.css?v=2">
+  <link rel="stylesheet" href="../../shared/base.css?v=4">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <a class="back-link" href="../../">← 아카이브</a>
+
+  <section class="stage-wrap is-fixed">
+    <div class="stage">
+      <canvas id="stage-canvas" aria-label="바둑판무늬 카드 열 장이 대각선 띠를 따라 흐르고, 움직일 때마다 천처럼 끌려가며 구겨졌다가 멈추면 다시 펴지는 3D 장면"></canvas>
+      <div class="stage-caption">
+        <p class="caption-index">09</p>
+        <h1>천 포스터</h1>
+        <p>카드가 천처럼 끌려가며 구겨지고, 멈추면 다시 펴져.</p>
+        <p class="caption-hint">휠을 굴리거나 끌어봐</p>
+        <a class="notes-jump" href="#notes">기법 노트 ↓</a>
+      </div>
+    </div>
+  </section>
+
+  <main class="notes" id="notes">
+    <section>
+      <h2>이 데모에 쓴 기법</h2>
+      <dl>
+        <dt>카드 한 장 = 천 한 장</dt>
+        <dd>카드마다 점 25 × 33개를 실로 엮었어. 가로·세로 이웃은 안 늘어나는 실, 대각선은 아주 살짝 늘어나는 실, 두 칸 건너는 휘어지게 해주는 실이야. 한 프레임을 6단계로 잘게 나눠서 풀어.</dd>
+        <dt>한 점을 잡고 끌기</dt>
+        <dd>카드마다 가운데에서 8~16% 떨어진 한 점(방향은 카드마다 황금각씩 돌아가)을 잡아서, 그 둘레 점 몇 개만 띠에 붙어 끌려가고 나머지는 뒤따라와. 잡는 곳이 장마다 달라서 구겨지는 모양도 다 달라. 그래도 카드는 가운데가 띠 자리에 반듯하게 서서, 멈춰 있으면 간격이 일정해. 중력은 없어. 점마다 평평한 자리로 돌아가려는 힘(42), 잡은 곳 속도를 따라가려는 힘(8), 면 방향 공기 저항(11), 감쇠(0.8)가 걸려. 그래서 움직일 땐 구겨지고 멈추면 다시 반듯하게 펴져.</dd>
+        <dt>얼굴부터 밀리게</dt>
+        <dd>띠는 오른쪽 위로 32° 기울고 오른쪽이 멀어지게 비틀려 있고, 카드는 띠에 비스듬히 돌아서 있어. 그래서 띠를 따라 움직이면 카드 입장에선 거의 얼굴 쪽으로 밀려서, 공기에 가장자리가 뒤로 접혀.</dd>
+        <dt>너무 세게 끌어도 괜찮게</dt>
+        <dd>천이 느끼는 속도는 초당 2200px, 속도 변화는 초당 16000px까지만이야. 넘는 만큼은 천 전체를 통째로 옮겨서, 아주 빨리 끌어도 적당히 스크롤한 것처럼만 구겨지고 서로 뚫고 지나가지 않아.</dd>
+        <dt>쉬는 천</dt>
+        <dd>거의 안 움직이고 판판해진 천은 평평하게 딱 맞춘 뒤 계산을 멈춰. 그래서 멈춰 있을 땐 가벼워.</dd>
+      </dl>
+    </section>
+    <section>
+      <h2>참고한 곳</h2>
+      <p>숫자와 원리만 공부했고, 코드는 가져오지 않았어.</p>
+      <p><a href="https://tympanus.net/codrops/2026/11/17/cloth-posters-webgpu/" target="_blank" rel="noopener">An Infinite Carousel of Cloth Posters with WebGPU</a> (Codrops, Jesper Landberg): 천 계산 방식과 숫자, 띠 배치, 스크롤.</p>
+      <p><a href="https://tympanus.net/Demos/ClothCarousel/" target="_blank" rel="noopener">원본 데모</a> (WebGPU 되는 브라우저에서만 열려).</p>
+      <p><a href="#stage-canvas">↑ 천으로 돌아가기</a></p>
+    </section>
+  </main>
+
+  <script type="module" src="./main.js?v=8"></script>
+</body>
+</html>
