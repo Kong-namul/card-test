@@ -4,8 +4,8 @@ import { GATHER, CYLINDER, expoInOut, staggerProgress, curvedPoint, cylinderPoin
 
 const close = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${a} ≉ ${b}`);
 
-test('기본값: 한 번에 + 각도만큼 돌기가 기본 (사용자: "한 번에 찹"), 줄줄이 옵션은 시간차 0.5 · 앞 카드부터 · 위아래 먼저', () => {
-  assert.deepEqual(GATHER, { mode: 'classicSpin', spread: 0.5, frontFirst: true, verticalFirst: true, waypointNear: 0.95, waypointFar: 0.095 });
+test('기본값: 등불이 기본 (사용자 선택), 물줄기 옵션은 출발 간격 0.5 · 앞 카드부터 · 가로 띠로 먼저', () => {
+  assert.deepEqual(GATHER, { mode: 'cylinder', spread: 0.5, frontFirst: true, verticalFirst: true, waypointNear: 0.95, waypointFar: 0.095 });
 });
 
 test('expoInOut: GSAP expo.inOut 모양 — 0·1 고정, 가운데 0.5, 앞뒤 대칭, 처음엔 거의 안 움직임', () => {
@@ -71,10 +71,10 @@ test('원통 → 가운데에서 도는 양: 세로축으로 자기 각도만큼
   close(collapseYaw(-2, 0.25), -1.5);                // 왼쪽은 반대로
 });
 
-test('원통이 되면서 모이기: 한 번에(같은 진행도), 원통은 덜(60%까지만) · 천천히(진행도 0~0.9에 걸쳐) — 사용자 "원통 조금만 덜, 더 느리게"', () => {
+test('등불: 한 번에(같은 진행도), 원통 정도 1(완전한 원통) · 펴지는 속도 0.8(진행도 0~0.8에 걸쳐) — 사용자가 패널로 고른 값', () => {
   assert.deepEqual(
     [CYLINDER.amount, CYLINDER.unfold, CYLINDER.collapse, CYLINDER.spread],
-    [0.6, [0, 0.9], [0, 1], 0],
+    [1, [0, 0.8], [0, 1], 0],
   );
 });
 
@@ -82,7 +82,7 @@ test('cylinderPoint는 원통 정도만큼만 섞어 쓸 수 있다 (0 = 공 그
   const p = { x: 0.3, y: 4.4, z: 0.4 };
   const full = cylinderPoint(p);
   const half = { x: p.x + (full.x - p.x) * 0.5, y: p.y + (full.y - p.y) * 0.5, z: p.z + (full.z - p.z) * 0.5 };
-  // 공 → 원통 섞기는 main에서 lerp(공, 원통, 진행 × 원통 정도)로 한다: 정도 0.6이면 끝까지 가도 60% 지점
+  // 공 → 원통 섞기는 main에서 lerp(공, 원통, 진행 × 원통 정도)로 한다: 정도 0.5면 끝까지 가도 50% 지점
   close(half.y, (4.4 + 4.4 * CYLINDER.heightScale) / 2);
 });
 

@@ -15,7 +15,7 @@ import { createPanel, addSettingsButtons } from '../../shared/panel.js?v=2';
 import { addTextureFolder } from '../../shared/texture-panel.js?v=6';
 import { scrollStages, stackSlot, stackIndexFromRank, STACK_LOOK, SCROLL_STAGES } from '../../shared/stack-choreography.js?v=3';
 import { fibonacciSphere, depthBrightness } from './layout.js?v=3';
-import { GATHER, CYLINDER, expoInOut, staggerProgress, curvedPoint, outwardAngles, cylinderPoint, collapseYaw } from './gather.js?v=5';
+import { GATHER, CYLINDER, expoInOut, staggerProgress, curvedPoint, outwardAngles, cylinderPoint, collapseYaw } from './gather.js?v=6';
 
 const CARD_W = 1.6;                  // 01과 같은 카드 (Grail 비율 1.42, R 20/345)
 const CARD_H = CARD_W * (490 / 345);
@@ -54,7 +54,7 @@ function main() {
     autoSpin: 0.12,    // 자전 속도 (초당 라디안)
     friction: 3,       // 관성 마찰: 클수록 빨리 멈춘다
     lift: 0.45,        // 커서 아래 카드가 바깥으로 떠오르는 높이
-    gatherMode: GATHER.mode,             // 모이기: classicSpin 팽이(기본) · cylinder 등불 · classic 눈뭉치 · flow 물줄기
+    gatherMode: GATHER.mode,             // 모이기: cylinder 등불(기본) · classicSpin 팽이 · classic 눈뭉치 · flow 물줄기
     spread: GATHER.spread,               // 줄줄이 시간차
     frontFirst: GATHER.frontFirst,       // 앞 카드부터
     verticalFirst: GATHER.verticalFirst, // 위아래 먼저
@@ -107,8 +107,8 @@ function main() {
 
   const gatherFolder = gui.addFolder('모이기 (스크롤)');
   gatherFolder.add(params, 'gatherMode', {
-    '팽이 · 각도만큼 돌며 한 번에 (기본)': 'classicSpin',
-    '등불 · 원통이 되며 오므라들기': 'cylinder',
+    '등불 · 원통이 되며 오므라들기 (기본)': 'cylinder',
+    '팽이 · 각도만큼 돌며 한 번에': 'classicSpin',
     '눈뭉치 · 다 같이 직선으로 뭉치기': 'classic',
     '물줄기 · 한 장씩 휜 길로': 'flow',
   }).name('방식').onChange(showGatherOptions);
@@ -290,8 +290,8 @@ function main() {
       const stack = stackSlot(c);
 
       // 이 카드가 더미로 간 정도 (0 = 공 위, 1 = 더미). 모이기 방식 4가지:
-      //   팽이(기본): 다 같이 한 번에 직선으로, 세로축으로 자기 각도만큼 돌며 (정면 0°, 옆 90°, 정반대편 180°)
-      //   등불:       공이 원통(각도·높이 그대로, 똑바로 섬)이 되어가며 동시에 가운데로 오므라든다, 팽이처럼 돌며
+      //   등불(기본): 공이 원통(각도·높이 그대로, 똑바로 섬)이 되어가며 동시에 가운데로 오므라든다, 팽이처럼 돌며
+      //   팽이:       다 같이 한 번에 직선으로, 세로축으로 자기 각도만큼 돌며 (정면 0°, 옆 90°, 정반대편 180°)
       //   눈뭉치:     다 같이 한 번에 직선으로, 가장 짧은 회전 (처음 만든 방식)
       //   물줄기:     카드마다 출발 시각이 다르고(앞 카드부터) expo.inOut으로, 휜 길을 따라
       const sphereHere = { x: sphereX, y: sphereY, z: sphereZ };
