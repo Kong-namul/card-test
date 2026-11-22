@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>01 나선 · Card Archive</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lenis@1.3.27/dist/lenis.css">
+  <link rel="stylesheet" href="../../shared/tokens.css?v=1">
+  <link rel="stylesheet" href="../../shared/base.css?v=4">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/",
+      "lenis": "https://cdn.jsdelivr.net/npm/lenis@1.3.27/dist/lenis.mjs"
+    }
+  }
+  </script>
+</head>
+<body>
+  <a class="back-link" href="../../">← 아카이브</a>
+
+  <section class="stage-wrap">
+    <div class="stage">
+      <canvas id="stage-canvas" aria-label="휘어진 흰 카드들이 납작한 나선을 그리며 흐르는 3D 장면"></canvas>
+      <div class="stage-caption">
+        <p class="caption-index">01</p>
+        <h1>나선</h1>
+        <p>휘어진 종이 카드가 납작한 나선을 따라 흘러.</p>
+        <p class="caption-hint">스크롤하면 카드가 모여 · 드래그로 감기 · 카드를 누르면 뒤집혀</p>
+      </div>
+    </div>
+  </section>
+
+  <main class="notes">
+    <section>
+      <h2>이 데모에 쓴 기법</h2>
+      <dl>
+        <dt>휜 카드</dt>
+        <dd>카드 면을 잘게 나누고 가장자리로 갈수록 뒤로 밀어서(x²) 종이처럼 휘게 했어. 휘어 있으니까 빛이 표면을 따라 흘러.</dd>
+        <dt>깊이 어둠</dt>
+        <dd>진짜 그림자 대신 뒤쪽에 있는 카드일수록 어둡게 칠해. 계산은 가볍고 깊이감은 확실해.</dd>
+        <dt>쫀득한 관성</dt>
+        <dd>드래그한 위치를 바로 따라가지 않고, 매 프레임 남은 거리의 일부만 따라가. 그래서 미끄러지듯 멈춰.</dd>
+        <dt>스크롤 연출</dt>
+        <dd>스크롤로 나선을 돌리지 않고, 스크롤 양을 연출 진행도로 써. 나선 → 한 더미로 모이기 → 맨 앞 한 장만 남기 → 물결 뒤집기 순서로, 구간마다 0에서 1로 부드럽게 섞여.</dd>
+        <dt>부드러운 스크롤</dt>
+        <dd>Lenis로 휠·트랙패드 스크롤을 미끄럽게 보간해서, 연출이 툭툭 끊기지 않고 흘러가.</dd>
+        <dt>속도 잔상</dt>
+        <dd>빠르게 돌수록 이전 화면을 조금씩 남겨서 잔상이 생겨 (AfterimagePass).</dd>
+        <dt>자석과 기울기</dt>
+        <dd>커서 근처 카드는 커서 쪽으로 끌려오고, 장면 전체가 커서 쪽으로 살짝 기울어.</dd>
+        <dt>망원 카메라</dt>
+        <dd>화각을 38°로 좁게 잡아서 원근 왜곡을 줄였어. 장난감 같지 않고 고급스러워 보이는 이유야.</dd>
+        <dt>코팅과 박</dt>
+        <dd>MeshPhysicalMaterial의 코팅층(clearcoat)과 무지개 박(iridescence)에 스튜디오 조명 환경을 비췄어.</dd>
+        <dt>물결 뒤집기</dt>
+        <dd>카드 윗줄이 먼저 돌고 아랫줄이 조금 늦게 따라와서 물결처럼 뒤집혀.</dd>
+      </dl>
+    </section>
+    <section>
+      <h2>참고한 곳</h2>
+      <p><a href="https://grail-app.com" target="_blank" rel="noopener">Grail</a>: 메인 화면의 퀘스트 나선. 코드는 복사하지 않고 기법만 공부해서 다시 만들었어.</p>
+    </section>
+  </main>
+
+  <script type="module" src="./main.js?v=18"></script>
+</body>
+</html>

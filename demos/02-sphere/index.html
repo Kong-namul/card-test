@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>02 구 · Card Archive</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lenis@1.3.27/dist/lenis.css">
+  <link rel="stylesheet" href="../../shared/tokens.css?v=1">
+  <link rel="stylesheet" href="../../shared/base.css?v=4">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/",
+      "lenis": "https://cdn.jsdelivr.net/npm/lenis@1.3.27/dist/lenis.mjs"
+    }
+  }
+  </script>
+</head>
+<body>
+  <a class="back-link" href="../../">← 아카이브</a>
+
+  <section class="stage-wrap">
+    <div class="stage">
+      <canvas id="stage-canvas" aria-label="휘어진 흰 카드들이 커다란 공 표면에 붙어 돌다가 한 장으로 모이는 3D 장면"></canvas>
+      <div class="stage-caption">
+        <p class="caption-index">02</p>
+        <h1>구</h1>
+        <p>휘어진 종이 카드가 커다란 공 표면에 붙어 돌아.</p>
+        <p class="caption-hint">드래그로 던지듯 돌리기 · 스크롤하면 한 장으로 모여 · 카드를 누르면 뒤집혀</p>
+      </div>
+    </div>
+  </section>
+
+  <main class="notes">
+    <section>
+      <h2>이 데모에 쓴 기법</h2>
+      <dl>
+        <dt>피보나치 구</dt>
+        <dd>해바라기 씨앗처럼 황금비(1.618…)만큼씩 돌려가며 카드를 놓으면 공 표면에 빈틈 없이 고르게 퍼져. 정확히 꼭짓점에 놓이는 카드가 없게 반 칸 밀어서 시작해.</dd>
+        <dt>바깥 보기, 그리고 항상 똑바로</dt>
+        <dd>카드는 공 바깥쪽을 보는데, 기준 위쪽을 화면 위로 고정해서 공을 어떻게 돌려도 카드가 거꾸로 뒤집히지 않아.</dd>
+        <dt>던지는 관성</dt>
+        <dd>드래그하는 동안은 손을 바로 따라가고, 놓으면 마지막 속도로 미끄러지다 마찰로 서서히 멈춰. 누른 채 가만히 있다가 놓으면 던져지지 않아.</dd>
+        <dt>깊이 밝기</dt>
+        <dd>카메라 쪽 카드는 100%, 맨 뒤 카드는 10%까지 어둡게 칠해. 나선보다 훨씬 진하게 어두워서 공의 입체감이 확 살아.</dd>
+        <dt>엄청 큰 공</dt>
+        <dd>공의 겉보기 크기가 화면 세로보다 커서(약 27°) 위아래가 화면 밖으로 넘쳐. 카드는 32장만 써서 사이사이가 넉넉해.</dd>
+        <dt>하나로 모이기</dt>
+        <dd>스크롤하면 카메라에 가까운 카드부터 순서를 매겨서 한 더미로 모이고, 맨 앞 한 장만 남아 커졌다가 물결처럼 뒤집혀. 01 나선과 같은 연출 부품을 같이 써.</dd>
+        <dt>떠오르는 카드</dt>
+        <dd>커서 아래 카드는 공 바깥쪽으로 살짝 떠올랐다가, 커서가 떠나면 천천히 제자리로 돌아가.</dd>
+        <dt>스크롤 연출</dt>
+        <dd>스크롤로 공을 돌리지 않고, 스크롤 양을 모이기 연출 진행도로 써. Lenis로 스크롤을 부드럽게 해서 연출이 끊기지 않아.</dd>
+      </dl>
+    </section>
+    <section>
+      <h2>참고한 곳</h2>
+      <p><a href="https://www.seventeenagency.com/about" target="_blank" rel="noopener">Seventeen</a>: About 페이지의 Sphere Interaction (공 배치, 깊이 밝기).</p>
+      <p><a href="https://grail-app.com" target="_blank" rel="noopener">Grail</a>: 하나로 모이기 연출. 둘 다 코드는 복사하지 않고 기법만 공부해서 다시 만들었어.</p>
+    </section>
+  </main>
+
+  <script type="module" src="./main.js?v=8"></script>
+</body>
+</html>
