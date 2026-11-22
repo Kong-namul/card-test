@@ -1,0 +1,34 @@
+/* ─────────────────────────────────────────────────────────────
+ * dom-card.css — CSS 3D로 돌리는 카드 (06~08 공통)
+ * 비율·모서리는 01~05 3D 카드와 같은 Grail 값: 가로:세로 = 345:490, 모서리 = 가로 × 20/345
+ * 쓰는 쪽이 정하는 값: --card-w(카드 폭), --card-face(앞면 색), --card-back(뒷면 색). 색 기본값은 종이색.
+ * 구조: .dom-card > .dom-card__face--front + .dom-card__face--back
+ *       뒷면은 Y축으로 180° 돌려 붙여서, 카드가 뒤집히면 뒷면이 보인다.
+ * ───────────────────────────────────────────────────────────── */
+.dom-card {
+  position: relative;
+  width: var(--card-w, 160px);
+  aspect-ratio: 345 / 490;
+  transform-style: preserve-3d;
+}
+
+.dom-card__face {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: calc(var(--card-w, 160px) * 20 / 345);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.dom-card__face--front { background: var(--card-face, var(--card-paper)); }
+
+.dom-card__face--back {
+  background: var(--card-back, var(--card-paper));
+  transform: rotateY(180deg);
+}
+
+/* 카드 앞면 파스텔 (06·08 공통, 원본 영상 카드 색) — 카드든 미니카드든 이 클래스로 --card-face를 정한다 */
+.is-lavender { --card-face: var(--card-lavender); }
+.is-pink { --card-face: var(--card-pink); }
+.is-yellow { --card-face: var(--card-yellow); }

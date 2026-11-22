@@ -1,0 +1,66 @@
+/* ─────────────────────────────────────────────────────────────
+ * 08 원형 휠 — 배치만. 색·글자 크기는 tokens.css 값만 쓴다.
+ * 카드 모양·색은 shared/dom-card.css.
+ * 원본 1em 대신 --wheel-unit: 1440 화면에서 원 1008px·카드 108px (원본 영상 비율), 폰에선 최소 8px.
+ * ───────────────────────────────────────────────────────────── */
+.wheel-stage {
+  position: relative;
+  min-height: 100svh;
+  overflow: clip;
+  --wheel-unit: max(calc(1vw * var(--wheel-scale, 1)), 8px);
+  --wheel-size: calc(var(--wheel-unit) * 70);
+  --card-w: calc(var(--wheel-unit) * 7.5);
+  --card-h: calc(var(--card-w) * 490 / 345);
+  /* 원 윗변: 화면 40% 높이 (원이 오래 보이며 천천히 돌게). 카드가 원 바깥 위로 붙으니 낮은 화면에선 카드 높이 + 72px 아래 */
+  --wheel-top: max(40svh, calc(var(--card-h) + 72px));
+}
+
+/* 원: 화면 위쪽 가운데 */
+.wheel-frame {
+  position: absolute;
+  left: 50%;
+  top: var(--wheel-top);
+  width: var(--wheel-size);
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  display: grid;
+}
+.wheel { grid-area: 1 / 1; display: grid; }
+
+/* 그라데이션 막: 원 윗변부터 원 높이만큼, 화면 폭 전체를 덮는다 (원본 width·height 100%). 돌지 않는다.
+   원 상자 크기로만 덮으면 원 바깥으로 튀어나온 옆 카드가 안 가려진다 */
+.wheel-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--wheel-top);
+  height: var(--wheel-size);
+  pointer-events: none;
+}
+
+/* 칸: 원 높이만큼 길쭉한 감싸개를 가운데에 세우고 각도만큼 돌린다 → 회전 중심 = 원 중심 */
+.wheel-item-wrap {
+  grid-area: 1 / 1;
+  justify-self: center;
+  height: 100%;
+  transform: rotate(calc(var(--angle) * 1deg));
+}
+/* 카드는 감싸개 맨 위에서 자기 높이만큼 위로 → 아랫변이 원 윗변에 붙어 바깥을 향해 꽂힌다 */
+.wheel-item { transform: translateY(-100%); }
+
+/* 제목: 호 안쪽 가운데 (원본은 이 자리에 가격 글씨) */
+.wheel-title {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--wheel-top) + var(--wheel-size) * 0.12);
+  transform: translateX(-50%);
+  z-index: 1;
+  font-size: var(--text-72);
+  line-height: var(--lh-72);
+  white-space: nowrap;
+}
+.wheel-stage .stage-caption { z-index: 1; }
+
+@media (max-width: 767px) {
+  .wheel-title { font-size: var(--text-48); line-height: var(--lh-48); }
+}

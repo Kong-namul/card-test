@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>07 마우스로 도는 카드 · Card Archive</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="../../shared/tokens.css?v=2">
+  <link rel="stylesheet" href="../../shared/base.css?v=4">
+  <link rel="stylesheet" href="../../shared/dom-card.css?v=2">
+  <link rel="stylesheet" href="./style.css?v=1">
+  <script type="importmap">
+  {
+    "imports": {
+      "gsap": "https://cdn.jsdelivr.net/npm/gsap@3.15.1/index.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <a class="back-link" href="../../">← 아카이브</a>
+
+  <section class="price-stage" aria-label="큰 제목 앞에 종이 카드 한 장이 기운 채 서 있고, 마우스를 좌우로 움직이면 크게 돌아 라벤더 뒷면이 보이는 장면">
+    <h1 class="price-title">마우스로<br>도는 카드</h1>
+    <div class="price-card-area">
+      <div class="price-slot"><div class="dom-card price-card">
+        <div class="dom-card__face dom-card__face--front"></div>
+        <div class="dom-card__face dom-card__face--back"></div>
+      </div></div>
+      <div class="price-reflection" aria-hidden="true"><div class="price-reflection__flip"><div class="price-slot"><div class="dom-card price-card">
+        <div class="dom-card__face dom-card__face--front"></div>
+        <div class="dom-card__face dom-card__face--back"></div>
+      </div></div></div></div>
+    </div>
+    <div class="stage-caption">
+      <p class="caption-index">07</p>
+      <p>카드가 툭 튕겨 들어오고, 마우스를 좌우로 움직이면 크게 돌아서 뒷면이 보여.</p>
+      <p class="caption-hint">마우스를 좌우로 · 폰은 좌우로 끌기</p>
+    </div>
+  </section>
+
+  <main class="notes" id="notes">
+    <section>
+      <h2>이 데모에 쓴 기법</h2>
+      <dl>
+        <dt>툭 튕겨 들어오는 등장</dt>
+        <dd>페이지가 열리면 카드가 옆으로 선 채(−90°) 64px 위에서 내려오면서 돌아 정면을 보고, 6° 기운 채로 1초 동안 탄력 있게 멈춰. 탄성은 GSAP elastic(1, 0.75)이야.</dd>
+        <dt>마우스를 따라 돌기</dt>
+        <dd>등장이 끝나면 매 프레임 마우스가 화면 가운데에서 얼마나 떨어졌는지(−1~1)에 200°를 곱해서 그만큼 돌려. 화면 끝까지 가면 200°라 뒷면(라벤더)이 보여. 많이 돌수록 기울기가 6°에서 −6°로 넘어가서 손으로 돌리는 느낌이 나. 목표 각도로 0.5초 동안 부드럽게 따라붙어.</dd>
+        <dt>나가면 제자리</dt>
+        <dd>마우스가 무대를 나가거나 "← 아카이브" 링크·조절 패널 위로 올라가면, 1.5초 동안 탄력 있게 정면 6°로 돌아와.</dd>
+        <dt>바닥 반사</dt>
+        <dd>같은 카드를 위아래로 뒤집어 바로 아래에 두고 같은 각도로 돌려. 뒤집힌 상자 안이라 기울기는 저절로 반대로 보여서 거울처럼 비쳐. 흐리게 하고 카드 높이 15%만 보이다 사라지게 했어 (원본 영상에서 잰 길이).</dd>
+        <dt>폰</dt>
+        <dd>폰엔 마우스가 없어서, 손가락을 좌우로 끌면 마우스처럼 돌고 떼면 제자리로 돌아와.</dd>
+      </dl>
+    </section>
+    <section>
+      <h2>참고한 곳</h2>
+      <p>숫자와 원리만 공부했고, 코드는 가져오지 않았어.</p>
+      <p><a href="https://tympanus.net/codrops/2025/07/29/built-to-move-a-closer-look-at-the-animations-behind-eduard-bodaks-portfolio/" target="_blank" rel="noopener">Built to Move</a> (Codrops, Eduard Bodak): 등장·따라가기·복귀 숫자, 반사 아이디어.</p>
+      <p><a href="https://www.osmo.supply/" target="_blank" rel="noopener">Osmo</a>: 원본 작가가 마우스 따라가기의 출발점으로 쓴 무료 리소스.</p>
+      <p><a href="https://gsap.com/" target="_blank" rel="noopener">GSAP</a>: 트윈·탄성 이징.</p>
+      <p><a href="#">↑ 처음으로</a></p>
+    </section>
+  </main>
+
+  <script type="module" src="./main.js?v=1"></script>
+</body>
+</html>

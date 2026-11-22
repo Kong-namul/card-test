@@ -1,0 +1,84 @@
+/* ─────────────────────────────────────────────────────────────
+ * 06 탈출 & 뒤집기 — 배치만. 색·글자 크기는 tokens.css 값만 쓴다.
+ * 카드 모양은 shared/dom-card.css.
+ * ───────────────────────────────────────────────────────────── */
+
+/* 탈출 구간: 첫 화면. 카드 폭은 영상에서 잰 화면 폭 9% (폰에서도 72px 아래로는 안 작아짐) */
+.escape {
+  position: relative;
+  height: 100svh;
+  overflow-x: clip;
+  --card-w: clamp(72px, 9vw, 160px);
+}
+
+/* 사이 띠: 원본의 검은 띠·문단 자리. 탈출 카드가 사라지고 잠깐 빈 뒤에 귀환 카드가 나타나게 띄운다
+   (귀환 카드는 막이 걷히기 전엔 배경색이라, 아래에서 올라오는 길은 안 보인다) */
+.gap { height: 60svh; }
+
+/* 귀환 구간: 350svh 동안 안쪽 무대가 화면에 붙어 있다 (원본 service_container / service_sticky)
+   카드 폭은 영상에서 잰 화면 폭 24%, 낮은 화면에선 세로 42svh에 맞춘다 */
+.return {
+  position: relative;
+  height: 350svh;
+  overflow-x: clip;
+}
+.return-stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  --card-w: min(24vw, calc(42svh * 345 / 490));
+}
+
+/* 카드 한 줄: 무대 한가운데가 기준점, 카드마다 --slot 칸만큼 옆에 놓는다
+   (--gap-ratio는 main.js가 timeline.js 상수로 넣는다 — 키프레임과 같은 값이어야 겹침이 맞는다) */
+.card-row {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+}
+/* 원근은 카드마다 따로 (소실점 = 카드 한가운데). 세 장이 한 3D 공간을 같이 쓰면 겹칠 때 서로 뚫고
+   지나가 잘려 보여서, 칸마다 따로 그리게 해 HTML 순서대로 위에 그려지게 했다 (나중 카드가 위) */
+.slot {
+  position: absolute;
+  left: calc(var(--slot) * var(--card-w) * var(--gap-ratio, 1) - var(--card-w) / 2);
+  top: calc(var(--card-w) * -245 / 345);
+  perspective: var(--persp, 1200px);
+}
+.float { transform-style: preserve-3d; }
+
+/* 탈출 카드는 왼쪽(라벤더)이 맨 앞 (원본 영상: 라벤더가 분홍을, 분홍이 노랑을 덮는다).
+   귀환 카드는 HTML 순서가 노랑·분홍·라벤더라 그대로 두면 라벤더가 맨 앞이다 */
+.escape .slot:nth-child(1) { z-index: 3; }
+.escape .slot:nth-child(2) { z-index: 2; }
+.escape .slot:nth-child(3) { z-index: 1; }
+/* 캡션 글씨는 카드보다 위 (배경색 막이 덮인 카드가 글씨를 가리지 않게) */
+.escape .stage-caption { z-index: 4; }
+
+/* 카드를 덮는 막: 스크롤하면 배경색으로 차오르며 카드가 사라진다 (원본 Part 01 끝) */
+.veil {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-1);
+  opacity: 0;
+}
+
+/* 미니카드 진행 표시 (원본 Part 2.1). 오른쪽 위는 조절 패널 자리라 오른쪽 아래에 둔다.
+   --fill(0~1)까지 아래→위로 선명, 나머지는 35% 흐림. 덜 찬 만큼 --lift 아래에 있다 */
+.tiny-cards {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  display: flex;
+  gap: 8px;
+}
+.tiny-card {
+  --fill: 0;
+  --lift: 4px;
+  width: 16px;
+  aspect-ratio: 345 / 490;
+  border-radius: 2px;
+  background: var(--card-face);
+  -webkit-mask-image: linear-gradient(to top, #000 calc(var(--fill) * 100%), rgba(0, 0, 0, 0.35) calc(var(--fill) * 100%));
+  mask-image: linear-gradient(to top, #000 calc(var(--fill) * 100%), rgba(0, 0, 0, 0.35) calc(var(--fill) * 100%));
+  transform: translate3d(0, var(--lift), 0);
+}

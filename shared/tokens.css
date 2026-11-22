@@ -10,6 +10,10 @@
 
   /* 카드 */
   --card-paper: #F4F1EA;      /* 무지 카드 기본색 (오프화이트) */
+  /* 06~ Eduard Bodak 카드 앞면 파스텔 — 원본 영상(Codrops 04번 7초) 카드 면 픽셀 평균 */
+  --card-lavender: #E6DAF6;
+  --card-pink: #FED3F4;
+  --card-yellow: #FCDDA8;
 
   /* 글자 */
   --fg-1: #FFFFFF;                    /* 제목, 강조 */

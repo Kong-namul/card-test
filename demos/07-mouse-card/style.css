@@ -1,0 +1,53 @@
+/* ─────────────────────────────────────────────────────────────
+ * 07 마우스로 도는 카드 — 배치·반사만. 색·글자 크기는 tokens.css 값만 쓴다.
+ * 카드 모양은 shared/dom-card.css.
+ * ───────────────────────────────────────────────────────────── */
+
+/* 무대: 가운데에 큰 제목과 카드. 카드 폭은 원본 영상에서 잰 화면 폭 9% (폰에서 110px 아래로는 안 작아짐) */
+.price-stage {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 96px 16px 160px;
+  overflow: clip;
+  touch-action: pan-y; /* 폰: 세로로 밀면 페이지 스크롤, 가로로 끌면 카드가 돈다 */
+  --card-w: clamp(110px, 9vw, 180px);
+}
+
+.price-title {
+  font-size: var(--text-72);
+  line-height: var(--lh-72);
+  text-align: center;
+}
+
+/* 카드가 제목 아랫줄을 절반쯤 가리며 앞에 선다 (원본 가격 페이지 구도) */
+.price-card-area {
+  position: relative;
+  width: var(--card-w);
+  margin-top: calc(var(--lh-72) / -2);
+}
+.price-slot { perspective: var(--persp, 800px); }
+.price-card { --card-back: var(--card-lavender); }
+
+/* 바닥 반사: 같은 카드를 위아래로 뒤집어 바로 아래에 두고, 흐리게 + 카드 높이 15%만 보이다 사라지게.
+   (원본은 그라데이션·backdrop-filter를 덮었는데, 같은 모습을 흐림 + 마스크로 낸다) */
+.price-reflection {
+  position: absolute;
+  left: 0;
+  top: calc(100% + var(--card-w) * 490 / 345 * var(--reflection-gap, 0.03));
+  width: 100%;
+  pointer-events: none;
+  filter: blur(var(--reflection-blur, 6px));
+  -webkit-mask-image: linear-gradient(to bottom, rgba(0, 0, 0, var(--reflection-opacity, 0.35)) 0, transparent calc(var(--card-w) * 490 / 345 * var(--reflection-visible, 0.15)));
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, var(--reflection-opacity, 0.35)) 0, transparent calc(var(--card-w) * 490 / 345 * var(--reflection-visible, 0.15)));
+}
+/* 뒤집힌 상자 안이라, 같은 회전 값을 줘도 기울기는 반대로 보인다 (원본 rotationZMirror와 같은 결과) */
+.price-reflection__flip { transform: scaleY(-1); }
+
+@media (max-width: 767px) {
+  .price-title { font-size: var(--text-48); line-height: var(--lh-48); }
+  .price-card-area { margin-top: calc(var(--lh-48) / -2); }
+}
