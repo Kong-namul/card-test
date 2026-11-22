@@ -1,20 +1,21 @@
 // ─────────────────────────────────────────────────────────────
 // 02 구 — 휘어진 종이 카드가 커다란 공 표면에 듬성듬성 붙어 돌고,
-// 스크롤하면 Grail처럼 한 더미로 모였다가 → 맨 앞 한 장만 남아 → 물결처럼 뒤집힌다.
+// 스크롤하면 한 장씩 줄줄이 휜 길로 한 더미에 모였다가 → 맨 앞 한 장만 남아 → 물결처럼 뒤집힌다.
 // 참고: Seventeen(seventeenagency.com/about) Sphere Interaction의 공 배치·깊이 밝기,
-//       Grail(grail-app.com)의 모이기 연출 — 둘 다 코드 복사 없이 기법만
+//       Grail(grail-app.com)의 모이기 연출 단계, Codrops Thumbnail Flow(줄줄이 휜 길) — 모두 코드 복사 없이 기법만
 // ─────────────────────────────────────────────────────────────
 import * as THREE from 'three';
 import Lenis from 'lenis';
 import { createStage, showWebGLFallback, readToken } from '../../shared/stage.js?v=6';
-import { createCardMaterial, syncMaterial, setCornerRadius } from '../../shared/card-material.js?v=6';
+import { createCardMaterial, syncMaterial, setCornerRadius } from '../../shared/card-material.js?v=8';
 import { createCardInstances } from '../../shared/card-geometry.js?v=3';
-import { damp, lerp, easeOutCubic, easeInOutCubic, Momentum, prefersReducedMotion } from '../../shared/motion.js?v=3';
+import { damp, lerp, clamp, easeOutCubic, easeInOutCubic, Momentum, prefersReducedMotion } from '../../shared/motion.js?v=3';
 import { DEFAULT_PRESET, presetToParams } from '../../shared/texture-presets.js?v=1';
 import { createPanel, addSettingsButtons } from '../../shared/panel.js?v=2';
-import { addTextureFolder } from '../../shared/texture-panel.js?v=4';
-import { scrollStages, stackSlot, stackIndexFromRank, STACK_LOOK } from '../../shared/stack-choreography.js?v=3';
+import { addTextureFolder } from '../../shared/texture-panel.js?v=6';
+import { scrollStages, stackSlot, stackIndexFromRank, STACK_LOOK, SCROLL_STAGES } from '../../shared/stack-choreography.js?v=3';
 import { fibonacciSphere, depthBrightness } from './layout.js?v=3';
+import { GATHER, expoInOut, staggerProgress, curvedPoint } from './gather.js?v=1';
 
 const CARD_W = 1.6;                  // 01과 같은 카드 (Grail 비율 1.42, R 20/345)
 const CARD_H = CARD_W * (490 / 345);
@@ -53,6 +54,10 @@ function main() {
     autoSpin: 0.12,    // 자전 속도 (초당 라디안)
     friction: 3,       // 관성 마찰: 클수록 빨리 멈춘다
     lift: 0.45,        // 커서 아래 카드가 바깥으로 떠오르는 높이
+    gatherMode: GATHER.mode,             // 모이기: flow 줄줄이 곡선(기본) · classic 원래 방식
+    spread: GATHER.spread,               // 줄줄이 시간차
+    frontFirst: GATHER.frontFirst,       // 앞 카드부터
+    verticalFirst: GATHER.verticalFirst, // 위아래 먼저
   };
   const params = structuredClone(DEFAULTS);
 
@@ -96,6 +101,12 @@ function main() {
   sphereFolder.add(params, 'autoSpin', 0, 1, 0.01).name('자전 속도');
   sphereFolder.add(params, 'friction', 0.5, 8, 0.1).name('관성 마찰');
   sphereFolder.add(params, 'lift', 0, 1.2, 0.01).name('떠오름');
+
+  const gatherFolder = gui.addFolder('모이기 (스크롤)');
+  gatherFolder.add(params, 'gatherMode', { '줄줄이 곡선 (기본)': 'flow', '원래 방식 (다 같이 직선)': 'classic' }).name('방식');
+  gatherFolder.add(params, 'spread', 0, 0.8, 0.01).name('줄줄이 시간차');
+  gatherFolder.add(params, 'frontFirst').name('앞 카드부터');
+  gatherFolder.add(params, 'verticalFirst').name('위아래 먼저');
 
   addSettingsButtons(gui, { params, defaults: DEFAULTS, onApply: applyAll });
 
@@ -200,6 +211,8 @@ function main() {
 
     // 1) 스크롤 연출 진행도: gather(모이기) → single(한 장) → flip(뒤집기) → settle(정리)
     const stages = scrollStages(scrollScreens());
+    const [gatherFrom, gatherTo] = SCROLL_STAGES.gather;
+    const gatherLin = clamp((scrollScreens() - gatherFrom) / (gatherTo - gatherFrom), 0, 1); // 줄줄이용: 부드럽게 하기 전 진행도
 
     // 2) 회전: 자전(모이기 전까지) + 드래그 던지기 관성
     spinY.friction = spinX.friction = params.friction;
@@ -253,20 +266,39 @@ function main() {
       const sphereZ = spherePos.z + outward.z * lifts[i];
 
       // 더미 안 위치: 앞에서부터 순위 → 0, 1, -1, 2, -2 …
-      const c = stackRanks ? stackIndexFromRank(stackRanks[i]) : 0;
+      const rank = stackRanks ? stackRanks[i] : 0;
+      const c = stackRanks ? stackIndexFromRank(rank) : 0;
       const stack = stackSlot(c);
+
+      // 이 카드가 더미로 간 정도 (0 = 공 위, 1 = 더미)
+      //   줄줄이 곡선: 카드마다 출발 시각이 다르고(앞 카드부터) expo.inOut으로, 휜 길을 따라
+      //   원래 방식:   다 같이 같은 진행도로, 직선으로
+      let toward;
+      let gathered;
+      if (params.gatherMode === 'flow') {
+        const order = params.frontFirst ? rank : cards.count - 1 - rank;
+        toward = stackRanks ? expoInOut(staggerProgress(gatherLin, order, cards.count, params.spread)) : 0;
+        gathered = curvedPoint({ x: sphereX, y: sphereY, z: sphereZ }, stack, toward, params.verticalFirst);
+      } else {
+        toward = stages.gather;
+        gathered = {
+          x: lerp(sphereX, stack.x, toward),
+          y: lerp(sphereY, stack.y, toward),
+          z: lerp(sphereZ, stack.z, toward),
+        };
+      }
 
       // 공 → 더미 → 한가운데, 순서로 섞는다
       position.set(
-        lerp(lerp(sphereX, stack.x, stages.gather), 0, stages.single),
-        lerp(lerp(sphereY, stack.y, stages.gather), 0, stages.single) + STACK_LOOK.settleRise * stages.settle,
-        lerp(lerp(sphereZ, stack.z, stages.gather), 0, stages.single),
+        lerp(gathered.x, 0, stages.single),
+        lerp(gathered.y, 0, stages.single) + STACK_LOOK.settleRise * stages.settle,
+        lerp(gathered.z, 0, stages.single),
       );
       // 방향: 공 바깥 보기 → 카메라 정면 보기
-      dummy.quaternion.slerpQuaternions(sphereQuat, facingCamera, stages.gather);
+      dummy.quaternion.slerpQuaternions(sphereQuat, facingCamera, toward);
 
       // 크기: 더미일 땐 살짝 크게, 한 장만 남을 땐 맨 앞(c=0)만 더 크게 나머지는 0, 마지막엔 86%
-      let scale = lerp(sphereScale, params.cardScale * STACK_LOOK.stackScale, stages.gather);
+      let scale = lerp(sphereScale, params.cardScale * STACK_LOOK.stackScale, toward);
       scale = lerp(scale, c === 0 ? params.cardScale * STACK_LOOK.singleScale : 0, stages.single);
       scale *= lerp(1, STACK_LOOK.settleScale, stages.settle);
 
@@ -274,8 +306,9 @@ function main() {
       dummy.scale.setScalar(scale);
       dummy.updateMatrix();
       cards.mesh.setMatrixAt(i, dummy.matrix);
-      // 깊이 밝기도 모일수록 사라져서 더미는 다 밝게
-      cards.setDim(i, lerp(depthBrightness(sphereZ, params.radius, MIN_BRIGHTNESS, MAX_BRIGHTNESS), 1, stages.gather));
+      // 깊이 밝기: 줄줄이는 날아가는 중의 깊이로 → 안 출발한 뒤쪽 카드는 어두운 채 공 모양을 지킨다. 더미에 닿을수록 밝게
+      const depthZ = params.gatherMode === 'flow' ? gathered.z : sphereZ;
+      cards.setDim(i, lerp(depthBrightness(depthZ, params.radius, MIN_BRIGHTNESS, MAX_BRIGHTNESS), 1, toward));
 
       // 뒤집기: 클릭으로 뒤집은 것과 스크롤 연출 뒤집기 중 큰 쪽
       let clickFlip = 0;
