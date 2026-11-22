@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────
 // 02 구 — 휘어진 종이 카드가 커다란 공 표면에 듬성듬성 붙어 돌고,
-// 스크롤하면 한 장씩 줄줄이 휜 길로 한 더미에 모였다가 → 맨 앞 한 장만 남아 → 물결처럼 뒤집힌다.
+// 스크롤하면 한 더미로 모였다가(팽이·등불·눈뭉치·물줄기 4가지) → 맨 앞 한 장만 남아 → 물결처럼 뒤집힌다.
 // 참고: Seventeen(seventeenagency.com/about) Sphere Interaction의 공 배치·깊이 밝기,
 //       Grail(grail-app.com)의 모이기 연출 단계, Codrops Thumbnail Flow(줄줄이 휜 길) — 모두 코드 복사 없이 기법만
 // ─────────────────────────────────────────────────────────────
@@ -15,7 +15,7 @@ import { createPanel, addSettingsButtons } from '../../shared/panel.js?v=2';
 import { addTextureFolder } from '../../shared/texture-panel.js?v=6';
 import { scrollStages, stackSlot, stackIndexFromRank, STACK_LOOK, SCROLL_STAGES } from '../../shared/stack-choreography.js?v=3';
 import { fibonacciSphere, depthBrightness } from './layout.js?v=3';
-import { GATHER, expoInOut, staggerProgress, curvedPoint } from './gather.js?v=1';
+import { GATHER, CYLINDER, expoInOut, staggerProgress, curvedPoint, outwardAngles, cylinderPoint, collapseYaw } from './gather.js?v=5';
 
 const CARD_W = 1.6;                  // 01과 같은 카드 (Grail 비율 1.42, R 20/345)
 const CARD_H = CARD_W * (490 / 345);
@@ -54,10 +54,12 @@ function main() {
     autoSpin: 0.12,    // 자전 속도 (초당 라디안)
     friction: 3,       // 관성 마찰: 클수록 빨리 멈춘다
     lift: 0.45,        // 커서 아래 카드가 바깥으로 떠오르는 높이
-    gatherMode: GATHER.mode,             // 모이기: flow 줄줄이 곡선(기본) · classic 원래 방식
+    gatherMode: GATHER.mode,             // 모이기: classicSpin 팽이(기본) · cylinder 등불 · classic 눈뭉치 · flow 물줄기
     spread: GATHER.spread,               // 줄줄이 시간차
     frontFirst: GATHER.frontFirst,       // 앞 카드부터
     verticalFirst: GATHER.verticalFirst, // 위아래 먼저
+    cylAmount: CYLINDER.amount,          // 등불: 원통 정도 (0 = 공 그대로, 1 = 완전한 원통)
+    cylUnfoldEnd: CYLINDER.unfold[1],    // 등불: 원통이 다 되는 지점 (클수록 천천히)
   };
   const params = structuredClone(DEFAULTS);
 
@@ -87,6 +89,7 @@ function main() {
     setCornerRadius(material, params.corner);
     if (params.count !== cards.count) rebuildCards();
     appliedBend = -1;
+    showGatherOptions(); // 설정 붙여넣기·기본값으로 방식이 바뀌어도 세부 옵션 표시를 맞춘다
   }
 
   // ── 패널 ────────────────────────────────────────────────────
@@ -103,10 +106,25 @@ function main() {
   sphereFolder.add(params, 'lift', 0, 1.2, 0.01).name('떠오름');
 
   const gatherFolder = gui.addFolder('모이기 (스크롤)');
-  gatherFolder.add(params, 'gatherMode', { '줄줄이 곡선 (기본)': 'flow', '원래 방식 (다 같이 직선)': 'classic' }).name('방식');
-  gatherFolder.add(params, 'spread', 0, 0.8, 0.01).name('줄줄이 시간차');
-  gatherFolder.add(params, 'frontFirst').name('앞 카드부터');
-  gatherFolder.add(params, 'verticalFirst').name('위아래 먼저');
+  gatherFolder.add(params, 'gatherMode', {
+    '팽이 · 각도만큼 돌며 한 번에 (기본)': 'classicSpin',
+    '등불 · 원통이 되며 오므라들기': 'cylinder',
+    '눈뭉치 · 다 같이 직선으로 뭉치기': 'classic',
+    '물줄기 · 한 장씩 휜 길로': 'flow',
+  }).name('방식').onChange(showGatherOptions);
+  // 방식별 세부 옵션: 드롭다운(1단계) 아래 하위 묶음(2단계)으로, 고른 방식일 때만 보인다
+  const lanternOptions = gatherFolder.addFolder('등불 옵션');
+  lanternOptions.add(params, 'cylAmount', 0, 1, 0.01).name('원통 정도');
+  lanternOptions.add(params, 'cylUnfoldEnd', 0.2, 1, 0.01).name('펴지는 속도 · 클수록 천천히');
+  const streamOptions = gatherFolder.addFolder('물줄기 옵션');
+  streamOptions.add(params, 'spread', 0, 0.8, 0.01).name('출발 간격');
+  streamOptions.add(params, 'frontFirst').name('앞 카드부터 출발');
+  streamOptions.add(params, 'verticalFirst').name('가로 띠로 먼저 모이기');
+  function showGatherOptions() {
+    lanternOptions.show(params.gatherMode === 'cylinder');
+    streamOptions.show(params.gatherMode === 'flow');
+  }
+  showGatherOptions();
 
   addSettingsButtons(gui, { params, defaults: DEFAULTS, onApply: applyAll });
 
@@ -191,6 +209,7 @@ function main() {
   const outward = new THREE.Vector3();
   const sphereQuat = new THREE.Quaternion();
   const facingCamera = new THREE.Quaternion(); // 회전 없음 = 카메라를 정면으로 봄 (더미 상태)
+  const turn = new THREE.Euler(0, 0, 0, 'YXZ'); // 숙이고 → 세로축으로 돌기 (팽이·등불)
   const startTime = performance.now() / 1000;
   let lastTime = startTime;
   let spherePositions = [];
@@ -270,22 +289,51 @@ function main() {
       const c = stackRanks ? stackIndexFromRank(rank) : 0;
       const stack = stackSlot(c);
 
-      // 이 카드가 더미로 간 정도 (0 = 공 위, 1 = 더미)
-      //   줄줄이 곡선: 카드마다 출발 시각이 다르고(앞 카드부터) expo.inOut으로, 휜 길을 따라
-      //   원래 방식:   다 같이 같은 진행도로, 직선으로
+      // 이 카드가 더미로 간 정도 (0 = 공 위, 1 = 더미). 모이기 방식 4가지:
+      //   팽이(기본): 다 같이 한 번에 직선으로, 세로축으로 자기 각도만큼 돌며 (정면 0°, 옆 90°, 정반대편 180°)
+      //   등불:       공이 원통(각도·높이 그대로, 똑바로 섬)이 되어가며 동시에 가운데로 오므라든다, 팽이처럼 돌며
+      //   눈뭉치:     다 같이 한 번에 직선으로, 가장 짧은 회전 (처음 만든 방식)
+      //   물줄기:     카드마다 출발 시각이 다르고(앞 카드부터) expo.inOut으로, 휜 길을 따라
+      const sphereHere = { x: sphereX, y: sphereY, z: sphereZ };
       let toward;
       let gathered;
+      let turned = false; // true면 아래에서 방향을 따로 정했다
       if (params.gatherMode === 'flow') {
         const order = params.frontFirst ? rank : cards.count - 1 - rank;
         toward = stackRanks ? expoInOut(staggerProgress(gatherLin, order, cards.count, params.spread)) : 0;
-        gathered = curvedPoint({ x: sphereX, y: sphereY, z: sphereZ }, stack, toward, params.verticalFirst);
+        gathered = curvedPoint(sphereHere, stack, toward, params.verticalFirst);
+      } else if (params.gatherMode === 'cylinder') {
+        // 한 번에(stages.gather 하나로): 원통 모양은 천천히(진행도 0~cylUnfoldEnd에 걸쳐), cylAmount만큼만 되고,
+        // 그동안에도 계속 가운데로 줄어든다
+        const g = stages.gather;
+        const unfold = params.cylAmount * clamp((g - CYLINDER.unfold[0]) / (params.cylUnfoldEnd - CYLINDER.unfold[0]), 0, 1);
+        const collapse = clamp((g - CYLINDER.collapse[0]) / (CYLINDER.collapse[1] - CYLINDER.collapse[0]), 0, 1);
+        toward = stackRanks ? staggerProgress(collapse, rank, cards.count, CYLINDER.spread) : 0;
+        const cyl = cylinderPoint(sphereHere);
+        gathered = {
+          x: lerp(lerp(sphereX, cyl.x, unfold), stack.x, toward),
+          y: lerp(lerp(sphereY, cyl.y, unfold), stack.y, toward),
+          z: lerp(lerp(sphereZ, cyl.z, unfold), stack.z, toward),
+        };
+        const ang = outwardAngles(spherePos);
+        turn.set(ang.pitch * (1 - unfold) * (1 - toward), collapseYaw(cyl.yaw, toward), 0); // 숙임: 원통 되는 만큼 + 더미에 닿으면 0
+        dummy.quaternion.setFromEuler(turn);
+        turned = true;
       } else {
+        // 한 번에: 다 같이 같은 진행도로, 직선으로
         toward = stages.gather;
         gathered = {
           x: lerp(sphereX, stack.x, toward),
           y: lerp(sphereY, stack.y, toward),
           z: lerp(sphereZ, stack.z, toward),
         };
+        if (params.gatherMode === 'classicSpin') {
+          // 팽이 — 정면 기준 카드(0°)에서 떨어진 각도만큼 세로축으로: 옆 카드 90°, 정반대편 180°, 바로 옆은 15~20°
+          const ang = outwardAngles(spherePos);
+          turn.set(ang.pitch * (1 - toward), collapseYaw(ang.yaw, toward), 0);
+          dummy.quaternion.setFromEuler(turn);
+          turned = true;
+        }
       }
 
       // 공 → 더미 → 한가운데, 순서로 섞는다
@@ -294,8 +342,8 @@ function main() {
         lerp(gathered.y, 0, stages.single) + STACK_LOOK.settleRise * stages.settle,
         lerp(gathered.z, 0, stages.single),
       );
-      // 방향: 공 바깥 보기 → 카메라 정면 보기
-      dummy.quaternion.slerpQuaternions(sphereQuat, facingCamera, toward);
+      // 방향: 공 바깥 보기 → 카메라 정면 보기 (줄줄이 곡선·원래 방식은 가장 짧은 회전 — 비스듬한 축으로 엎어져 앞뒤가 갈라져 보인다)
+      if (!turned) dummy.quaternion.slerpQuaternions(sphereQuat, facingCamera, toward);
 
       // 크기: 더미일 땐 살짝 크게, 한 장만 남을 땐 맨 앞(c=0)만 더 크게 나머지는 0, 마지막엔 86%
       let scale = lerp(sphereScale, params.cardScale * STACK_LOOK.stackScale, toward);
@@ -307,7 +355,7 @@ function main() {
       dummy.updateMatrix();
       cards.mesh.setMatrixAt(i, dummy.matrix);
       // 깊이 밝기: 줄줄이는 날아가는 중의 깊이로 → 안 출발한 뒤쪽 카드는 어두운 채 공 모양을 지킨다. 더미에 닿을수록 밝게
-      const depthZ = params.gatherMode === 'flow' ? gathered.z : sphereZ;
+      const depthZ = params.gatherMode === 'classic' || params.gatherMode === 'classicSpin' ? sphereZ : gathered.z;
       cards.setDim(i, lerp(depthBrightness(depthZ, params.radius, MIN_BRIGHTNESS, MAX_BRIGHTNESS), 1, toward));
 
       // 뒤집기: 클릭으로 뒤집은 것과 스크롤 연출 뒤집기 중 큰 쪽
