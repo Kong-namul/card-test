@@ -33,8 +33,12 @@ export const CYLINDER = {
 // 뒤쪽 넓은 띠에 걸쳐 천천히 넘어가게 한다 (사용자 "180°에서 딱 갈리는 게 너무 잘 보여, 영역을 길게").
 // 반폭 120° = 60°~300°. 띠는 화면 뒤에 고정, 모일수록 천천히 좁아지다(반폭 × (1 − t²)) 다 모이면 사라진다.
 // (사용자 "속도가 비일관" → 반폭 90°·(1 − t)에서 넓히고 천천히 좁히니 띠 가운데 최고 속도가 절반쯤으로). 패널에서 조절
+// finishBy: 도는 것은 모이기 85%에서 끝낸다. 띠가 사라지기 직전 정반대편 근처 카드가 급하게 도는데,
+// 그게 더미에 들어온 뒤에 일어나면 비스듬한 카드가 맨 앞 카드 앞으로 삐져나온다 (사용자 스크린샷).
+// 85%에 끝내면 그 순간은 카드들이 아직 더미에서 떨어져 있을 때 지나가고, 더미에선 모두 정면.
 export const SEAM = {
   halfWidth: (Math.PI * 2) / 3,
+  finishBy: 0.85,
 };
 
 const clamp01 = (t) => Math.min(1, Math.max(0, t));
@@ -106,4 +110,9 @@ export function bandYaw(yaw, t, halfWidth = SEAM.halfWidth) {
   const x = (around - (Math.PI - width)) / (2 * width);
   const s = x * x * (3 - 2 * x); // 띠 안 위치 0(오른쪽 끝) → 1(왼쪽 끝), 부드럽게
   return around * (1 - t) + s * turn * t;
+}
+
+// 도는 진행도: 자리 이동 진행도(toward)보다 먼저 1이 된다 — 모이기 85%에서 다 돌아 정면
+export function turnProgress(toward, finishBy = SEAM.finishBy) {
+  return clamp01(toward / finishBy);
 }

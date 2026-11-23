@@ -15,7 +15,7 @@ import { createPanel, addSettingsButtons } from '../../shared/panel.js?v=2';
 import { addTextureFolder } from '../../shared/texture-panel.js?v=6';
 import { scrollStages, stackSlot, stackIndexFromRank, STACK_LOOK, SCROLL_STAGES } from '../../shared/stack-choreography.js?v=3';
 import { fibonacciSphere, depthBrightness } from './layout.js?v=3';
-import { GATHER, CYLINDER, SEAM, expoInOut, staggerProgress, curvedPoint, outwardAngles, cylinderPoint, bandYaw } from './gather.js?v=9';
+import { GATHER, CYLINDER, SEAM, expoInOut, staggerProgress, curvedPoint, outwardAngles, cylinderPoint, bandYaw, turnProgress } from './gather.js?v=10';
 
 const CARD_W = 1.6;                  // 01과 같은 카드 (Grail 비율 1.42, R 20/345)
 const CARD_H = CARD_W * (490 / 345);
@@ -322,7 +322,8 @@ function main() {
           z: lerp(lerp(sphereZ, cyl.z, unfold), stack.z, toward),
         };
         const ang = outwardAngles(spherePos);
-        turn.set(ang.pitch * (1 - unfold) * (1 - toward), bandYaw(cyl.yaw, toward, (params.seamWidth * Math.PI) / 180), 0); // 숙임: 원통 되는 만큼 + 더미에 닿으면 0
+        const turnT = turnProgress(toward); // 도는 건 모이기 85%에서 끝 — 더미에 들어올 땐 모두 정면
+        turn.set(ang.pitch * (1 - unfold) * (1 - turnT), bandYaw(cyl.yaw, turnT, (params.seamWidth * Math.PI) / 180), 0); // 숙임: 원통 되는 만큼 + 다 돌면 0
         dummy.quaternion.setFromEuler(turn);
         turned = true;
       } else {
@@ -336,7 +337,8 @@ function main() {
         if (params.gatherMode === 'classicSpin') {
           // 팽이 — 정면 기준 카드(0°)에서 떨어진 각도만큼 세로축으로: 옆 카드 90°, 정반대편 180°, 바로 옆은 15~20°
           const ang = outwardAngles(spherePos);
-          turn.set(ang.pitch * (1 - toward), bandYaw(ang.yaw, toward, (params.seamWidth * Math.PI) / 180), 0);
+          const turnT = turnProgress(toward); // 도는 건 모이기 85%에서 끝 — 더미에 들어올 땐 모두 정면
+          turn.set(ang.pitch * (1 - turnT), bandYaw(ang.yaw, turnT, (params.seamWidth * Math.PI) / 180), 0);
           dummy.quaternion.setFromEuler(turn);
           turned = true;
         }

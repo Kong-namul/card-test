@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { GATHER, CYLINDER, SEAM, expoInOut, staggerProgress, curvedPoint, cylinderPoint, collapseYaw, outwardAngles, bandYaw } from '../demos/02-sphere/gather.js';
+import { GATHER, CYLINDER, SEAM, expoInOut, staggerProgress, curvedPoint, cylinderPoint, collapseYaw, outwardAngles, bandYaw, turnProgress } from '../demos/02-sphere/gather.js';
 
 const close = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${a} ≉ ${b}`);
 
@@ -150,5 +150,19 @@ test('같은 자리 카드는 모이는 동안 휙 뒤집히지 않는다 (모�
       prev = now;
     }
     assert.ok(worst < rad(10), `${d}°: 한 걸음 최대 ${deg(worst).toFixed(2)}°`);
+  }
+});
+
+test('도는 것은 모이기 85%에서 끝난다 — 더미에 들어올 땐 정반대편 근처 카드도 이미 정면 (사용자 스크린샷: 마지막에 비스듬한 카드가 앞으로 삐져나옴)', () => {
+  close(SEAM.finishBy, 0.85);
+  close(turnProgress(0), 0);
+  close(turnProgress(0.425), 0.5);
+  close(turnProgress(0.85), 1);
+  close(turnProgress(0.97), 1);
+  // 고치기 전: 다 모이기 직전(0.97)에 179° 카드가 아직 크게 돌아 있어서 더미 앞으로 삐져나왔다
+  assert.ok(Math.abs(wrapPi(bandYaw(rad(179), 0.97))) > rad(60), '고치기 전엔 0.97에서도 크게 돌아 있어야 한다');
+  // 고친 뒤: 85%부터는 어느 자리 카드든 정면
+  for (const toward of [0.85, 0.9, 0.97, 1]) {
+    for (let d = -179.5; d <= 180; d += 0.5) close(wrapPi(bandYaw(rad(d), turnProgress(toward))), 0);
   }
 });
