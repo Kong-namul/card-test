@@ -15,7 +15,7 @@ import { createPanel, addSettingsButtons } from '../../shared/panel.js?v=2';
 import { addTextureFolder } from '../../shared/texture-panel.js?v=6';
 import { scrollStages, stackSlot, stackIndexFromRank, STACK_LOOK, SCROLL_STAGES } from '../../shared/stack-choreography.js?v=3';
 import { fibonacciSphere, depthBrightness } from './layout.js?v=3';
-import { GATHER, CYLINDER, expoInOut, staggerProgress, curvedPoint, outwardAngles, cylinderPoint, collapseYaw } from './gather.js?v=6';
+import { GATHER, CYLINDER, SEAM, expoInOut, staggerProgress, curvedPoint, outwardAngles, cylinderPoint, bandYaw } from './gather.js?v=9';
 
 const CARD_W = 1.6;                  // 01과 같은 카드 (Grail 비율 1.42, R 20/345)
 const CARD_H = CARD_W * (490 / 345);
@@ -60,6 +60,7 @@ function main() {
     verticalFirst: GATHER.verticalFirst, // 위아래 먼저
     cylAmount: CYLINDER.amount,          // 등불: 원통 정도 (0 = 공 그대로, 1 = 완전한 원통)
     cylUnfoldEnd: CYLINDER.unfold[1],    // 등불: 원통이 다 되는 지점 (클수록 천천히)
+    seamWidth: Math.round((SEAM.halfWidth * 180) / Math.PI), // 등불·팽이: 뒤쪽 띠 반폭(°) — 오른쪽/왼쪽 도는 방향이 이 띠에 걸쳐 천천히 바뀐다
   };
   const params = structuredClone(DEFAULTS);
 
@@ -72,7 +73,6 @@ function main() {
   const flips = new Map();                    // 카드 번호 → 뒤집기 시작 시각(초)
   let stackRanks = null;                      // 모이기 시작한 순간 앞에서부터 매긴 순위 (모이는 동안 고정)
   let appliedBend = -1;                       // 마지막으로 카드 모양에 적용한 휨 (-1 = 다음 프레임에 다시 적용)
-
   function rebuildCards() {
     stage.scene.remove(cards.mesh);
     cards.dispose();
@@ -116,13 +116,19 @@ function main() {
   const lanternOptions = gatherFolder.addFolder('등불 옵션');
   lanternOptions.add(params, 'cylAmount', 0, 1, 0.01).name('원통 정도');
   lanternOptions.add(params, 'cylUnfoldEnd', 0.2, 1, 0.01).name('펴지는 속도 · 클수록 천천히');
+  lanternOptions.add(params, 'seamWidth', 10, 150, 1).name('뒤쪽 띠 넓이 (°)');
+  const topOptions = gatherFolder.addFolder('팽이 옵션');
+  topOptions.add(params, 'seamWidth', 10, 150, 1).name('뒤쪽 띠 넓이 (°)');
   const streamOptions = gatherFolder.addFolder('물줄기 옵션');
   streamOptions.add(params, 'spread', 0, 0.8, 0.01).name('출발 간격');
   streamOptions.add(params, 'frontFirst').name('앞 카드부터 출발');
   streamOptions.add(params, 'verticalFirst').name('가로 띠로 먼저 모이기');
   function showGatherOptions() {
     lanternOptions.show(params.gatherMode === 'cylinder');
+    topOptions.show(params.gatherMode === 'classicSpin');
     streamOptions.show(params.gatherMode === 'flow');
+    // 등불·팽이가 같은 '뒤쪽 띠 넓이'를 같이 쓰니까, 보이는 쪽 숫자를 최신으로
+    [lanternOptions, topOptions].forEach((folder) => folder.controllers.forEach((c) => c.updateDisplay()));
   }
   showGatherOptions();
 
@@ -316,7 +322,7 @@ function main() {
           z: lerp(lerp(sphereZ, cyl.z, unfold), stack.z, toward),
         };
         const ang = outwardAngles(spherePos);
-        turn.set(ang.pitch * (1 - unfold) * (1 - toward), collapseYaw(cyl.yaw, toward), 0); // 숙임: 원통 되는 만큼 + 더미에 닿으면 0
+        turn.set(ang.pitch * (1 - unfold) * (1 - toward), bandYaw(cyl.yaw, toward, (params.seamWidth * Math.PI) / 180), 0); // 숙임: 원통 되는 만큼 + 더미에 닿으면 0
         dummy.quaternion.setFromEuler(turn);
         turned = true;
       } else {
@@ -330,7 +336,7 @@ function main() {
         if (params.gatherMode === 'classicSpin') {
           // 팽이 — 정면 기준 카드(0°)에서 떨어진 각도만큼 세로축으로: 옆 카드 90°, 정반대편 180°, 바로 옆은 15~20°
           const ang = outwardAngles(spherePos);
-          turn.set(ang.pitch * (1 - toward), collapseYaw(ang.yaw, toward), 0);
+          turn.set(ang.pitch * (1 - toward), bandYaw(ang.yaw, toward, (params.seamWidth * Math.PI) / 180), 0);
           dummy.quaternion.setFromEuler(turn);
           turned = true;
         }

@@ -4,6 +4,7 @@
 //       한 장씩 시간차로, 휜 길(한 방향 95% · 다른 방향 9.5% 지점을 거쳐), expo.inOut. 코드는 가져오지 않고 원리만.
 // 실험 페이지에서 세 방식(줄줄이+세워서 / 줄줄이 곡선 / 01처럼 접기)을 나란히 보고 사용자가 고른 방식.
 // 팽이·등불 (사용자 아이디어): 카드가 비스듬한 축으로 엎어지지 않고 세로축으로 자기 각도만큼(정면 0°, 뒤 180°) 돌게.
+// 뒤쪽 갈림은 넓은 띠로 풀어서(bandYaw) 구가 계속 돌아도 휙 뒤집히거나 섞이지 않게.
 // ─────────────────────────────────────────────────────────────
 
 export const GATHER = {
@@ -26,6 +27,14 @@ export const CYLINDER = {
   unfold: [0, 0.8],
   collapse: [0, 1],
   spread: 0,
+};
+
+// 뒤쪽 띠: 정면 기준으로 도는 양이 오른쪽(+)과 왼쪽(−)으로 갈리는 경계를 정반대편(180°) 한 점이 아니라
+// 뒤쪽 넓은 띠에 걸쳐 천천히 넘어가게 한다 (사용자 "180°에서 딱 갈리는 게 너무 잘 보여, 영역을 길게").
+// 반폭 120° = 60°~300°. 띠는 화면 뒤에 고정, 모일수록 천천히 좁아지다(반폭 × (1 − t²)) 다 모이면 사라진다.
+// (사용자 "속도가 비일관" → 반폭 90°·(1 − t)에서 넓히고 천천히 좁히니 띠 가운데 최고 속도가 절반쯤으로). 패널에서 조절
+export const SEAM = {
+  halfWidth: (Math.PI * 2) / 3,
 };
 
 const clamp01 = (t) => Math.min(1, Math.max(0, t));
@@ -82,4 +91,19 @@ export function cylinderPoint(p, { radius, heightScale } = CYLINDER) {
 // 세로축으로 자기 각도만큼 돌아 정면으로: 남은 각도 = yaw × (1 − t). 정면 카드는 조금, 뒤 카드는 180°
 export function collapseYaw(yaw, t) {
   return yaw * (1 - clamp01(t));
+}
+
+// 띠를 쓴 도는 양: 띠 밖(앞·옆)은 collapseYaw 그대로(자기 각도만큼), 띠 안에서는 오른쪽 방향 → 왼쪽 방향으로 서서히 바뀐다.
+// 띠 오른쪽 끝에선 오른쪽 규칙과, 왼쪽 끝에선 왼쪽 규칙과 (한 바퀴 차이로) 같은 방향이라 이음매가 없다.
+// 띠 반폭은 모일수록 halfWidth × (1 − t²)로 천천히 좁아져서 다 모이면(t = 1) 모든 카드가 정면을 본다.
+export function bandYaw(yaw, t, halfWidth = SEAM.halfWidth) {
+  t = clamp01(t);
+  const turn = Math.PI * 2;
+  yaw -= Math.round(yaw / turn) * turn; // 어떤 값이 와도 −180°~180°로 맞춰서 센다
+  const width = halfWidth * (1 - t * t);
+  const around = yaw > 0 ? yaw : yaw + turn; // 0~360°로 펴서 세기 (뒤가 180°)
+  if (width <= 0 || Math.abs(around - Math.PI) >= width) return collapseYaw(yaw, t);
+  const x = (around - (Math.PI - width)) / (2 * width);
+  const s = x * x * (3 - 2 * x); // 띠 안 위치 0(오른쪽 끝) → 1(왼쪽 끝), 부드럽게
+  return around * (1 - t) + s * turn * t;
 }

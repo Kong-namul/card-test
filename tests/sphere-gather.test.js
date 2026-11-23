@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { GATHER, CYLINDER, expoInOut, staggerProgress, curvedPoint, cylinderPoint, collapseYaw, outwardAngles } from '../demos/02-sphere/gather.js';
+import { GATHER, CYLINDER, SEAM, expoInOut, staggerProgress, curvedPoint, cylinderPoint, collapseYaw, outwardAngles, bandYaw } from '../demos/02-sphere/gather.js';
 
 const close = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${a} ≉ ${b}`);
 
@@ -92,4 +92,63 @@ test('바깥 보기 방향 나누기: 좌우 각도(yaw)와 위아래 숙임(pit
   close(outwardAngles({ x: 3, y: 0, z: 0 }).yaw, Math.PI / 2);
   close(Math.abs(outwardAngles({ x: 0, y: 0, z: -1 }).yaw), Math.PI);
   close(outwardAngles({ x: 0, y: 1, z: 1 }).pitch, -Math.PI / 4); // 위쪽 카드는 위를 본다 (X축 음의 회전)
+});
+
+const rad = (d) => (d * Math.PI) / 180;
+const deg = (r) => (r * 180) / Math.PI;
+const wrapPi = (a) => a - Math.round(a / (2 * Math.PI)) * 2 * Math.PI; // 각도 차이를 −180°~180°로
+
+test('뒤쪽 띠 기본 넓이: 반폭 120° (60°~300°) — 띠 가운데가 너무 빨리 돌지 않게 넓게 (사용자 "영역을 길게", "속도가 비일관")', () => {
+  close(SEAM.halfWidth, rad(120));
+});
+
+test('띠는 천천히 좁아진다: 반폭 × (1 − 모인 정도²) — 0.6에서 64%, 0.9에서 19% 남고 다 모이면 0', () => {
+  // 모인 정도 0.6에서 정반대편 근처(띠 안)를 지날 때 도는 양이 앞쪽의 7배를 넘지 않는다 (예전 1−t는 12배)
+  const t = 0.6;
+  let peak = 0;
+  for (let d = 90; d < 270; d += 0.5) peak = Math.max(peak, Math.abs(wrapPi(bandYaw(rad(d + 0.5), t) - bandYaw(rad(d), t))) / rad(0.5));
+  assert.ok(peak / (1 - t) < 7, `띠 가운데가 앞쪽의 ${(peak / (1 - t)).toFixed(1)}배`);
+});
+
+test('bandYaw: 띠 밖(앞·옆)은 지금처럼 자기 각도만큼 — 정면 0°, 옆 60°는 반쯤 모이면 30°', () => {
+  close(bandYaw(0, 0.5), 0);
+  close(bandYaw(rad(60), 0.5), rad(30));
+  close(bandYaw(rad(-50), 0.25), rad(-37.5));
+});
+
+test('bandYaw: 모이기 0이면 원래 방향 그대로, 다 모이면 전부 정면 (뒤쪽 카드 포함)', () => {
+  for (let d = -179; d <= 180; d += 7) {
+    close(wrapPi(bandYaw(rad(d), 0) - rad(d)), 0);
+    close(wrapPi(bandYaw(rad(d), 1)), 0);
+  }
+});
+
+test('고치기 전 방식은 정반대편(180°)에서 이웃 카드끼리 크게 갈린다 — 띠 방식은 0.1° 옆 카드와 2° 미만 (다 모여가는 0.9에선 띠가 좁아 3° 미만)', () => {
+  // 고치기 전: 179.9° 와 −179.9° (0.2° 떨어진 이웃) 이 반쯤 모이면 180° 가까이 다르게 돈다
+  const naiveGap = Math.abs(wrapPi(collapseYaw(rad(179.9), 0.5) - collapseYaw(rad(-179.9), 0.5)));
+  assert.ok(naiveGap > rad(170), `고치기 전 이웃 차이 ${deg(naiveGap)}°`);
+  for (const t of [0.1, 0.3, 0.5, 0.7, 0.9]) {
+    let worst = 0;
+    let prev = bandYaw(rad(-180), t);
+    for (let d = -179.9; d <= 180; d += 0.1) {
+      const now = bandYaw(rad(d), t);
+      worst = Math.max(worst, Math.abs(wrapPi(now - prev)));
+      prev = now;
+    }
+    const limit = t >= 0.9 ? 3 : 2;
+    assert.ok(worst < rad(limit), `모인 정도 ${t}: 이웃 차이 최대 ${deg(worst).toFixed(2)}°`);
+  }
+});
+
+test('같은 자리 카드는 모이는 동안 휙 뒤집히지 않는다 (모인 정도 0.9까지 — 그 뒤 마지막 구간엔 정반대편 바로 옆 카드만 빨리 돌아 정면을 맞춘다, 더미 맨 뒤라 가려짐)', () => {
+  for (const d of [100, 150, 175, 179, 181, 200, 250]) {
+    let worst = 0;
+    let prev = bandYaw(rad(d), 0);
+    for (let t = 0.002; t <= 0.9001; t += 0.002) {
+      const now = bandYaw(rad(d), t);
+      worst = Math.max(worst, Math.abs(wrapPi(now - prev)));
+      prev = now;
+    }
+    assert.ok(worst < rad(10), `${d}°: 한 걸음 최대 ${deg(worst).toFixed(2)}°`);
+  }
 });
