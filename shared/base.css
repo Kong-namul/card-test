@@ -47,6 +47,8 @@ a { color: var(--fg-1); }
   text-decoration: none;
 }
 .back-link:hover { color: var(--fg-1); }
+/* 글만 있는 페이지(작업 방식)에선 따라오지 않고 맨 위에만 둔다. 고정이면 폰에서 스크롤한 본문 위에 겹친다 */
+.back-link.is-static { position: absolute; }
 
 /* 스크롤 공간: 이 높이만큼 스크롤하는 동안 3D 장면이 화면에 붙어 있고,
    스크롤 양이 카드를 감는 입력이 된다. 다 내리면 노트가 나온다. */
@@ -107,10 +109,10 @@ a { color: var(--fg-1); }
 .stage-wrap.is-fixed { height: 100svh; }
 .stage-wrap.is-fixed canvas { touch-action: none; cursor: default; }
 
-/* 캡션 안 "기법 노트 ↓" 링크 (캡션은 클릭이 통과되니 이 링크만 다시 켠다) */
+/* 알약 모양 라인 버튼: 캡션의 "기법 노트 ↓", 첫 화면의 "작업 방식 →" */
+.pill-link,
 .stage-caption .notes-jump {
   display: inline-block;
-  margin-top: 16px;
   padding: 8px 16px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -118,9 +120,15 @@ a { color: var(--fg-1); }
   font-size: var(--text-14);
   line-height: var(--lh-14);
   text-decoration: none;
+}
+.pill-link:hover,
+.stage-caption .notes-jump:hover { color: var(--fg-1); }
+
+/* 캡션 안 "기법 노트 ↓" (캡션은 클릭이 통과되니 이 링크만 다시 켠다) */
+.stage-caption .notes-jump {
+  margin-top: 16px;
   pointer-events: auto;
 }
-.stage-caption .notes-jump:hover { color: var(--fg-1); }
 
 /* WebGL을 못 쓰는 브라우저 안내 */
 .fallback {
@@ -169,7 +177,15 @@ a { color: var(--fg-1); }
   margin: 0 auto;
   padding: 120px 24px 128px;
 }
-.archive-intro { margin: 16px 0 0; }
+/* 소개 문구 + 옆에 알약 버튼 (좁은 화면에선 버튼이 아래 줄로 넘어간다) */
+.archive-intro {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin: 16px 0 0;
+}
+.archive-intro p { margin: 0; }
 
 .demo-list {
   margin: 72px 0 0;
