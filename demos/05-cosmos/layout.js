@@ -1,129 +1,258 @@
 // ─────────────────────────────────────────────────────────────
-// layout.js — 05 우주 표류: 균일 배치·둥실·흔들림·빛 위치·별먼지 (Three.js 없이 숫자만)
+// layout.js — 05 우주 표류: 다이아몬드 그리드 배치·마우스 밀림·움직임 세기·등장·면 일렁임·빛 위치·별먼지
+//   (Three.js 없이 숫자만)
+// 배치·밀림·일렁임·등장 숫자: Fiddle.Digital Experiments Hub(exp.fiddle.digital) 그리드 보기의
+//   실제 코드에서 읽은 값 (원리·숫자만, 코드는 안 가져옴)
 // 반짝임 원리 참고(코드 X): 포켓몬 홀로 카드 CSS의 글레어, 포일 스티커 셰이더의 반짝이 알갱이
 // ─────────────────────────────────────────────────────────────
 import { clamp, smoothstep } from '../../shared/motion.js?v=3';
 import { mulberry32 } from '../../shared/random.js?v=1';
 
 const TAU = Math.PI * 2;
-// 배치: 사용자가 보내준 레퍼(Paul Smith "Collectors Club" 우표 4장)처럼 카드가 가운데를 느슨하게 둘러싸고,
-// 각자 다른 각도로 비스듬히 기울어 손으로 툭툭 놓은 듯 균형 있게. (무작위 → 격자 → 이 배치)
-//   sx·sy: 화면 세로 반폭을 1로 본 위치 (사진에서 우표 중심을 재서 옮김), tilt: 화면 안에서 기운 각도(라디안, +는 반시계)
-//   5번째(왼쪽 위)는 사진에 없는 자리라 비어 있는 쪽에 균형 맞춰 추가
-//   다듬기 (사용자 선택 "가운데로 모으기 + 크기 고르게"): 우리 장면엔 레퍼처럼 가운데 큰 글자가 없어서
-//   둘러싸기만 하면 가운데가 휑했다 → 우표 위치·기울기 비율은 그대로, 무리 전체를 가운데로 30% 좁혀 한 덩어리로.
-//   그다음 "오른쪽·왼쪽 겹침 해제" → 겹치던 왼쪽 두 장, 맞닿던 오른쪽 두 장을 조금씩 벌려서
-//   둥실거려도 모든 카드 사이에 틈이 0.07 넘게 (기울어진 사각형끼리 계산)
-//   depth: 카메라에서의 거리. 깊이감을 주려고 다 다르게 했는데 12~24는 크기가 들쭉날쭉해서 14~19로 좁힘
-//          (크기 차이 ±15% 안, 깊이감은 밝기 차이·마우스 시차·별먼지로)
-export const ROW_DEPTH = 16;              // 기본 거리 (카드 크기·모이는 자리 기준)
-export const COMPOSITION = [
-  { sx: -0.13, sy: -0.38, tilt: 0.28, depth: 14 },  // 분홍 우표 자리 (가운데 아래, 16°) — 가장 가까움
-  { sx: 0.38, sy: 0.33, tilt: -0.18, depth: 15 },   // 주황 우표 자리 (오른쪽 위, −10°)
-  { sx: -0.4, sy: 0.25, tilt: 0.21, depth: 17 },    // 추가 (왼쪽 위, 12°)
-  { sx: -0.57, sy: -0.24, tilt: 0.45, depth: 19 },  // 파랑 우표 자리 (왼쪽 아래, 26°) — 가장 멂
-  { sx: 0.55, sy: -0.21, tilt: -0.27, depth: 18 },  // 초록 우표 자리 (오른쪽, −15°)
+export const ROW_DEPTH = 16;          // 모든 카드가 같은 거리 (레퍼처럼 평평한 그리드 → 렌즈 휨이 깔끔)
+export const LAYER_GAP = 0.05;        // 겹칠 때 깜빡이지 않게 순서(0 = 맨 앞)마다 이만큼씩 뒤로
+export const CARD_RATIO = 490 / 345;  // 공통 종이 카드 세로 ÷ 가로
+
+// 레퍼 그리드 칸 (x 0~4 왼→오, y 0~4 위→아래). 가운데 (2,2)는 비운다 (레퍼는 로고 자리).
+// 순서는 1440×900에서 화면 가운데에 가까운 칸부터 → 0번이 더미 맨 앞, 먼저 나타남.
+// (화면 크기마다 거리를 다시 재서 정렬하면 창 크기를 바꿀 때 카드 번호가 뒤바뀌어서 순서를 고정)
+export const DIAMOND_CELLS = [
+  [3, 2], [1, 1], [1, 3], [2, 0], [2, 4], [3, 0], [0, 2], [4, 1], [4, 3],
 ];
-export const COMPOSITION_CARD = 0.4;      // 카드 높이 = 화면 세로 반폭 × 0.4 → 화면 높이의 20% (사진 우표 18%)
-export const COMPOSITION_WIDTH = 0.8;     // 배치가 가로로 차지하는 반폭 (세로 반폭 단위). 이보다 좁은 화면은 전체를 줄인다
-const LAYER_GAP = 0.05;                   // 겹칠 때 깜빡이지 않게 순서(0 = 맨 앞)마다 이만큼씩 뒤로
 
-// 화면이 배치보다 좁으면(폰 세로) 배치 전체를 같은 비율로 줄여서 다 들어오게
-export function compositionScale(aspect) {
-  return Math.min(1, aspect / COMPOSITION_WIDTH);
+// 레퍼 grid.fit · cardSizeMultiplier · gapMultiplier 값. 바깥 카드 가장자리까지 화면 폭 98%·높이 82%에 펼친다
+export const GRID_FIT = {
+  width: 0.98,
+  height: 0.82,
+  cardWidth: 0.135,                                                     // 카드 폭 = 화면 폭 13.5% × 크기 배율
+  size: { referencePx: 1000, strength: -0.2, min: -3, max: 3 },
+  gapX: { referencePx: 1024, strength: -0.1, min: -100, max: 100 },
+  gapY: { referencePx: 640, strength: -0.5, min: -1, max: 0.5 },
+  narrowPx: 768,          // 레퍼는 이 폭 이하에서 그리드 대신 목록 → 카드 크기는 우리가 정함
+  narrowCardWidth: 0.17,  // 마름모 5칸이 가로로 들어가는 크기 (20%면 같은 줄 옆 칸(2,0)·(3,0)이 겹친다)
+  narrowZoom: 1.5,        // 폰에선 그 마름모를 통째로 키운다 (카드·간격 같이 → 안 겹침, 바깥 열은 화면 밖으로).
+                          // 사용자 "폰에서도 카드 크게, 좀 잘려도 돼"
+};
+
+// 흐트러짐 (사용자 "정확히 마름모라 너무 반듯해, 흐트러뜨리고 정면 기준으로 약간 회전도" → "좀 더 자유분방해도 돼"):
+//   자리·기울기: 칸마다 손으로 정한 방향(같은 열 이웃은 서로 반대쪽 — 맨 바깥 열만 화면 안쪽으로 둘 다, 크기를 다르게 —
+//                카드 폭 ±45%·높이 ±40%까지, 기울기 ±8°).
+//                겹치는 쌍이 생기면 그 두 장만 원래 칸 쪽으로 10%씩 되돌려서 안 겹칠 때까지 → 여유 있는 카드는 크게 움직인다.
+//                (처음엔 레퍼 grid.jitter처럼 틈의 45% 안으로 묶었더니 PC에서 ±45px뿐이라 반듯해 보였다)
+//   비틀기: 좌우 ±12° · 위아래 ±8° (카드 번호 난수). 빛을 받는 순간도 카드마다 달라진다
+//   offsets 순서는 DIAMOND_CELLS와 같다: [가로(카드 폭 단위), 세로(카드 높이 단위, 위가 +), 기울기(도)]
+export const SCATTER = {
+  offsets: [
+    [-0.35, 0.2, -5],  // (3,2)
+    [-0.45, 0.3, 7],   // (1,1)
+    [0.4, -0.25, -4],  // (1,3)
+    [-0.3, -0.15, 6],  // (2,0)
+    [0.35, 0.25, -7],  // (2,4)
+    [0.45, 0.3, -8],   // (3,0)
+    [0.25, -0.4, 8],   // (0,2)
+    [-0.4, -0.3, 5],   // (4,1)
+    [-0.1, 0.35, -6],  // (4,3) 맨 바깥 열은 화면 안쪽으로만 (같은 열 (4,1)은 더 많이)
+  ],
+  tilt: 8,
+  turnY: 12,
+  turnX: 8,
+  pullBack: 0.9,     // 겹치면 이만큼씩 칸 쪽으로 되돌린다
+  rounds: 80,
+  minGap: 6,         // 카드 사이 최소 틈 (px), 카드 폭의 4%가 더 크면 그만큼
+};
+
+// 카드 번호 → 0~1 난수 (늘 같은 값). 레퍼 그리드 흐트러짐과 같은 사인 해시
+export function cardHash(n) {
+  const v = Math.sin(n * 12.9898) * 43758.5453;
+  return v - Math.floor(v);
 }
 
-// 배치 자리 → 공간 좌표 (카메라는 원점에서 −z를 본다). 거리 d에서 화면 세로 반폭 = tan(화각/2) × d
-//   그 카드의 거리(depth)에서 계산해서, 거리가 달라도 화면 위치는 배치 그대로.
-//   layer: 앞뒤 순서 (0 = 맨 앞). compositionRanks로 정한 순서를 넘긴다
-export function compositionPosition(slot, layer, { fov, aspect }) {
-  const depth = slot.depth ?? ROW_DEPTH;
-  const unit = Math.tan((fov * Math.PI) / 360) * depth * compositionScale(aspect);
-  return { x: slot.sx * unit, y: slot.sy * unit, z: -depth - layer * LAYER_GAP };
+// 화면 크기에 따라 1에서 조금씩 바뀌는 배율 (레퍼 식): 1 + (크기 ÷ 기준 − 1) × 세기, 범위 안으로
+const sizeMultiplier = (sizePx, { referencePx, strength, min, max }) => clamp(1 + (sizePx / referencePx - 1) * strength, min, max);
+
+// 카드 크기와 칸 간격 (px). 간격은 크기 배율 1 기준 카드로 정하고, cardScale은 카드만 키운다
+export function gridMetrics(widthPx, heightPx, cardScale = 1) {
+  const fit = GRID_FIT;
+  const baseW = widthPx <= fit.narrowPx
+    ? widthPx * fit.narrowCardWidth
+    : widthPx * fit.cardWidth * sizeMultiplier(widthPx, fit.size);
+  const baseH = baseW * CARD_RATIO;
+  // 한 칸 = 카드 + 틈. 틈 = (차지할 넓이 − 카드)/4 − 카드 → 바깥 카드 가장자리까지 넓이 안에 (음수면 이웃 줄과 엇갈려 겹침)
+  const colStep = baseW + ((fit.width * widthPx - baseW) / 4 - baseW) * sizeMultiplier(widthPx, fit.gapX);
+  const rowStep = baseH + ((fit.height * heightPx - baseH) / 4 - baseH) * sizeMultiplier(heightPx, fit.gapY);
+  const zoom = widthPx <= fit.narrowPx ? fit.narrowZoom : 1;
+  return { cardW: baseW * zoom * cardScale, cardH: baseH * zoom * cardScale, colStep: colStep * zoom, rowStep: rowStep * zoom };
 }
 
-// 앞뒤 순서: 가장 가까운 카드가 0번(맨 앞), 거리가 같으면 화면 가운데에 가까운 쪽. 모이기 더미의 순서와 같아서
-// 흩어져 있을 때부터 다 모일 때까지 앞뒤가 한 번도 안 바뀐다 → 겹치는 도중에 위아래가 뒤집히지 않음
-export function compositionRanks(slots) {
-  const depthOf = (slot) => slot.depth ?? ROW_DEPTH;
-  const order = slots.map((_, i) => i).sort((a, b) => depthOf(slots[a]) - depthOf(slots[b])
-    || Math.hypot(slots[a].sx, slots[a].sy) - Math.hypot(slots[b].sx, slots[b].sy));
-  const ranks = new Array(slots.length);
-  order.forEach((slotIndex, rank) => { ranks[slotIndex] = rank; });
-  return ranks;
+// 기울어진 카드 두 장 사이 틈 (px, 음수면 겹침): 네 변에 수직인 방향으로 그림자를 비춰 가장 크게 벌어진 값 (분리축)
+function tiltedCorners(card, w, h) {
+  const c = Math.cos(card.tilt);
+  const n = Math.sin(card.tilt);
+  return [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]]
+    .map(([x, y]) => [card.x + x * c - y * n, card.y + x * n + y * c]);
 }
-
-// 카드 높이(공간 단위): 모든 카드가 같은 크기
-export function compositionCardHeight({ fov, aspect }) {
-  return Math.tan((fov * Math.PI) / 360) * ROW_DEPTH * compositionScale(aspect) * COMPOSITION_CARD;
-}
-
-// 등장: 레퍼(Paul Smith Collectors Club) 실제 사이트 코드에서 확인한 그대로.
-//   우표 묶음 전체가 Vue 전환 "scale-down"으로 들어온다:
-//     .scale-down-enter-from { opacity: 0; transform: scale(1.1) } → .scale-down-enter-to { opacity: 1; transform: scale(1) }
-//     .scale-down-enter-active { transition: transform 1s }  (투명도엔 전환이 없어서 바로 보이고, 크기만 1초 동안 줄어든다)
-//   날아오거나 돌거나 휘지 않는다 — 우표를 종이에 꾹 찍어 붙이는 느낌.
-//   (그동안 화면 밖에서 날아오기 → 커지며 모이기 → 떨어지기 → 책장 넘기기를 해봤는데 다 과했다)
-export const SETTLE_IN = { from: 1.1, duration: 1 };
-
-// 3차 베지어 한 축 값 (시작 0, 끝 1, 조절점 p1·p2)
-function bezierAxis(u, p1, p2) {
-  const v = 1 - u;
-  return 3 * v * v * u * p1 + 3 * v * u * u * p2 + u * u * u;
-}
-
-// CSS 기본 이징 "ease" = cubic-bezier(0.25, 0.1, 0.25, 1): 시간 t(0~1) → 진행도. 가로축을 반으로 나눠 찾아서 세로축 값을 돌려준다
-export function cssEase(t) {
-  if (t <= 0) return 0;
-  if (t >= 1) return 1;
-  let low = 0;
-  let high = 1;
-  let u = t;
-  for (let i = 0; i < 40; i++) {
-    const x = bezierAxis(u, 0.25, 0.25);
-    if (Math.abs(x - t) < 1e-7) break;
-    if (x < t) low = u;
-    else high = u;
-    u = (low + high) / 2;
+export function tiltedGap(a, b, w, h) {
+  const pa = tiltedCorners(a, w, h);
+  const pb = tiltedCorners(b, w, h);
+  let best = -Infinity;
+  for (const shape of [pa, pb]) {
+    for (let i = 0; i < 4; i++) {
+      const [x1, y1] = shape[i];
+      const [x2, y2] = shape[(i + 1) % 4];
+      const ax = -(y2 - y1);
+      const ay = x2 - x1;
+      const length = Math.hypot(ax, ay);
+      const project = (points) => points.map(([x, y]) => (x * ax + y * ay) / length);
+      const qa = project(pa);
+      const qb = project(pb);
+      best = Math.max(best, Math.min(...qb) - Math.max(...qa), Math.min(...qa) - Math.max(...qb));
+    }
   }
-  return bezierAxis(u, 0.1, 1);
+  return best;
 }
 
-// 페이지를 연 뒤 time초 때 묶음 전체 크기 배율 (1.1 → 1)
-export function settleIn(time) {
-  const t = clamp(time / SETTLE_IN.duration, 0, 1);
-  return SETTLE_IN.from + (1 - SETTLE_IN.from) * cssEase(t);
-}
-
-// 카드마다 둥실·흔들림 박자 (같은 시드면 같은 박자). 자리는 균일 배치가 정한다
-export function createCosmos(count, seed) {
-  const random = mulberry32(seed);
-  const cards = [];
-  for (let i = 0; i < count; i++) {
-    cards.push({
-      floatPeriod: 14 + random() * 10,   // 한 번 오르내리는 데 14~24초
-      floatPhase: random() * TAU,
-      wobblePeriodX: 9 + random() * 8,   // 각도가 한 번 흔들리는 데 9~17초
-      wobblePeriodY: 9 + random() * 8,
-      wobblePhaseX: random() * TAU,
-      wobblePhaseY: random() * TAU,
-    });
+// 다이아몬드 배치: 칸 → 화면 가운데 기준 px (위가 +). count장만 가운데 가까운 칸부터.
+// scatter: 흐트러짐 배율 (0 = 정확한 마름모·정면, 1 = 기본). tilt·turnX·turnY는 라디안
+export function diamondLayout(widthPx, heightPx, count = DIAMOND_CELLS.length, cardScale = 1, scatter = 1) {
+  const metrics = gridMetrics(widthPx, heightPx, cardScale);
+  const { cardW, cardH, colStep, rowStep } = metrics;
+  const n = clamp(Math.round(count), 1, DIAMOND_CELLS.length);
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const slots = DIAMOND_CELLS.slice(0, n).map(([cx, cy], i) => {
+    const [ox, oy, tilt] = SCATTER.offsets[i];
+    return {
+      cell: [cx, cy],
+      baseX: (cx - 2) * colStep,
+      baseY: (2 - cy) * rowStep,
+      offsetX: ox * cardW * scatter,
+      offsetY: oy * cardH * scatter,
+      tilt: toRad(tilt) * scatter,
+      keep: 1, // 흐트러짐을 얼마나 남길지 (겹치면 줄어든다)
+    };
+  });
+  const place = (slot) => ({
+    x: slot.baseX + slot.offsetX * slot.keep,
+    y: slot.baseY + slot.offsetY * slot.keep,
+    tilt: slot.tilt * slot.keep,
+  });
+  // 겹치는 쌍은 둘 다 칸 쪽으로 조금씩 되돌린다 (다 되돌리면 정확한 마름모라 반드시 풀린다)
+  const minGap = Math.max(SCATTER.minGap, cardW * 0.04);
+  for (let round = 0; round < SCATTER.rounds; round++) {
+    let overlapped = false;
+    for (let i = 0; i < slots.length; i++) {
+      for (let j = i + 1; j < slots.length; j++) {
+        if (tiltedGap(place(slots[i]), place(slots[j]), cardW, cardH) < minGap) {
+          slots[i].keep *= SCATTER.pullBack;
+          slots[j].keep *= SCATTER.pullBack;
+          overlapped = true;
+        }
+      }
+    }
+    if (!overlapped) break;
   }
-  return cards;
+  const cards = slots.map((slot, i) => ({
+    cell: slot.cell,
+    ...place(slot),
+    turnX: (cardHash(i * 19 + 47.9) * 2 - 1) * toRad(SCATTER.turnX) * scatter,
+    turnY: (cardHash(i * 23 + 59.3) * 2 - 1) * toRad(SCATTER.turnY) * scatter,
+  }));
+  return { ...metrics, cards };
 }
 
-// 둥실둥실: 위아래 0.18 + 좌우 0.08 (× amount), 카드마다 다른 박자. clock은 "떠다니는 시계"(초)
-export function floatOffset(card, clock, amount) {
-  const t = (clock * TAU) / card.floatPeriod + card.floatPhase;
-  return { x: Math.cos(t * 0.6) * 0.08 * amount, y: Math.sin(t) * 0.18 * amount };
+// 등장 (레퍼 intro): 묶음 전체가 화면 가운데 기준 0.5배에서 3.6초 동안 1배로 (easeInOutQuart),
+// 카드는 0.3초 뒤부터 0.15초 간격으로 바로 나타난다 (나타나는 데 걸리는 시간 0)
+export const INTRO = { scaleFrom: 0.5, duration: 3.6, appearDelay: 0.3, appearStagger: 0.15 };
+
+export function easeInOutQuart(t) {
+  const x = clamp(t, 0, 1);
+  return x < 0.5 ? 8 * x ** 4 : 1 - (-2 * x + 2) ** 4 / 2;
 }
 
-// 각도 흔들림: 정면에서 최대 maxAngle(라디안) 안에서 천천히. 카드마다 박자가 달라서 빛 받는 순간도 다르다
-export function wobbleAngles(card, clock, maxAngle) {
-  return {
-    rotX: Math.sin((clock * TAU) / card.wobblePeriodX + card.wobblePhaseX) * maxAngle,
-    rotY: Math.sin((clock * TAU) / card.wobblePeriodY + card.wobblePhaseY) * maxAngle,
-  };
+export function introScale(time) {
+  return INTRO.scaleFrom + (1 - INTRO.scaleFrom) * easeInOutQuart(time / INTRO.duration);
+}
+
+export function appearTime(rank) {
+  return INTRO.appearDelay + INTRO.appearStagger * rank;
+}
+
+// 마우스 밀림 (레퍼 grid.cardParallax): 카드가 커서 반대쪽으로 밀린다(최대 −180px × 세기 2).
+// 가운데에서 먼 카드일수록 많이(√거리, 최소 10%), 커서가 가운데에서 멀수록 많이. 커서는 한 프레임에 8%씩 따라간다
+export const PARALLAX = {
+  maxOffsetPx: -180,
+  strength: 2,
+  minimumInfluence: 0.1,
+  centerInfluencePower: 0.5,
+  followLerp: 0.08,
+  returnLerp: 0.08,
+};
+
+// 커서 위치(화면 가운데 기준 px)를 천천히 따라간다. 60fps 한 프레임 기준 비율을 dt에 맞춰 바꾼다
+export function followPointer(current, target, following, dt) {
+  const rate = following ? PARALLAX.followLerp : PARALLAX.returnLerp;
+  const t = 1 - Math.pow(1 - clamp(rate, 0, 1), dt * 60);
+  return { x: current.x + (target.x - current.x) * t, y: current.y + (target.y - current.y) * t };
+}
+
+// card: 카드 자리, pointer: 따라간 커서 (둘 다 화면 가운데 기준 px, 위가 +) → 카드가 밀릴 px
+export function parallaxOffset(card, pointer, view, strength = PARALLAX.strength) {
+  const reach = Math.hypot(pointer.x, pointer.y);
+  const halfDiagonal = Math.hypot(view.width, view.height) / 2;
+  if (reach === 0 || halfDiagonal === 0) return { x: 0, y: 0 };
+  const pointerAmount = Math.min(1, reach / halfDiagonal);
+  const cardDistance = Math.min(1, Math.hypot(card.x, card.y) / halfDiagonal);
+  const influence = PARALLAX.minimumInfluence
+    + (1 - PARALLAX.minimumInfluence) * Math.pow(cardDistance, PARALLAX.centerInfluencePower);
+  const amount = PARALLAX.maxOffsetPx * strength * influence * pointerAmount;
+  return { x: (pointer.x / reach) * amount, y: (pointer.y / reach) * amount };
+}
+
+// 움직임 세기 (레퍼 speed 신호): 스크롤 빠르기(화면/초)를 0~1로. 1.5화면/초를 1로 본다(우리가 정한 기준).
+// 데드존 45% 아래는 0, 세제곱으로 올라가고, 올라갈 땐 초당 8 · 내려갈 땐 6 · 멈추면 16 빠르기로 따라간다
+export const SPEED_SIGNAL = {
+  fullSpeed: 1.5,
+  deadZone: 0.45,
+  buildExponent: 3,
+  attackRate: 8,
+  releaseRate: 6,
+  settleRate: 16,
+  restSpeed: 0.001,
+};
+
+export function speedEnergy(current, screensPerSecond, dt) {
+  const s = SPEED_SIGNAL;
+  const ratio = clamp(Math.abs(screensPerSecond) / s.fullSpeed, 0, 1);
+  const target = Math.pow(clamp((ratio - s.deadZone) / (1 - s.deadZone), 0, 1), s.buildExponent);
+  let rate = s.releaseRate;
+  if (target > current) rate = s.attackRate;
+  else if (Math.abs(screensPerSecond) < s.restSpeed) rate = s.settleRate;
+  const next = current + (target - current) * (1 - Math.exp(-rate * dt));
+  return next < 5e-4 ? 0 : next;
+}
+
+// 카드 면 일렁임 (레퍼 cardMotion.idle): 두 물결이 엇갈려 지나가며 카드 면이 깊이 방향으로 아주 살짝.
+// 깊이 0.2662는 레퍼 카드 폭 4.67 기준 → 우리 카드 폭 1.6에 맞춰 줄인다. 시계는 초당 0.16, 가만히 있을 땐 12%
+export const RIPPLE = { depth: (0.2662 * 1.6) / 4.67, spatialScale: 0.86, speed: 0.16, restWeight: 0.12 };
+
+export function rippleClock(clock, dt) {
+  return (clock + dt * RIPPLE.speed) % TAU;
+}
+
+export function rippleWeight(energy) {
+  return RIPPLE.restWeight + (1 - RIPPLE.restWeight) * clamp(energy, 0, 1);
+}
+
+// 셰이더(glint-material.js)와 같은 식. u·v: 카드 위 위치 0~1, seed: 카드마다 다른 시작 위상
+export function rippleHeight(u, v, time, seed, depth, weight) {
+  const px = u - 0.5;
+  const py = v - 0.5;
+  const waveA = Math.sin((px * 3.1 + py * 1.7) * RIPPLE.spatialScale + time + seed);
+  const waveB = Math.sin((px * -1.35 + py * 3.75) * RIPPLE.spatialScale - time * 2 + seed * 1.61803398875);
+  const field = waveA * 0.68 + waveB * 0.32;
+  const edge = (t) => smoothstep(0, 0.16, t);
+  const interior = edge(u) * edge(1 - u) * edge(v) * edge(1 - v);
+  const steady = 0.32 + (1 - 0.32) * interior; // 테두리 16% 안쪽은 0.32배까지 덜 움직인다
+  return field * steady * (1 - 0.3 * (px * px + py * py)) * depth * weight;
 }
 
 // 글레어 빛 위치: 카메라 바로 앞(z −3)에서 카드들 앞을 8자(리사주)로 훑는 작은 전구.
@@ -136,16 +265,10 @@ export function glintPosition(angle) {
   return [Math.sin(angle) * GLINT_SWEEP.x, Math.sin(angle * 0.7 + 1) * GLINT_SWEEP.y, GLINT_SWEEP.z];
 }
 
-// 먼 카드일수록 어둡게 (깊이 어둠): 가장 가까운 거리 1 → 가장 먼 거리 1 − amount
-export const DEPTH_DIM = { near: 14, far: 19, amount: 0.35 };
-export function depthDim(depth) {
-  return 1 - DEPTH_DIM.amount * smoothstep(DEPTH_DIM.near, DEPTH_DIM.far, depth);
-}
-
 // 별먼지 3겹 (깊이감): 먼 별 · 카드 사이 먼지 · 카메라 바로 앞 먼지.
 //   zNear·zFar: 카메라에서의 거리 범위, halfX·halfY: 퍼지는 반폭 (그 거리에서 화면 밖까지 덮게, 화면비 2.4 기준),
 //   sizeMin·sizeMax: 화면 픽셀 크기, drift: 초당 떠다니는 양 (상자를 넘으면 반대편에서 다시 나온다), opacity: 밝기
-//   가까운 먼지일수록 크고 흐릿하고 빨리 지나가서, 마우스로 시점을 옮기면 먼 별·카드·먼지가 서로 다르게 움직인다
+//   가까운 먼지일수록 크고 흐릿하고 빨리 지나가서 깊이감이 난다. 화면 가장자리에선 렌즈를 따라 같이 휜다
 export const STAR_LAYERS = {
   far: { zNear: 38, zFar: 98, halfX: 85, halfY: 48, sizeMin: 0.6, sizeMax: 2.2, drift: [0, 0, 0], opacity: 0.85 },
   mid: { zNear: 8, zFar: 30, halfX: 28, halfY: 13, sizeMin: 0.5, sizeMax: 1.6, drift: [0.05, 0.1, 0], opacity: 0.6 },

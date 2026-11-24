@@ -2,13 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mulberry32 } from '../shared/random.js';
 import {
-  ROW_DEPTH, COMPOSITION, COMPOSITION_CARD, COMPOSITION_WIDTH, compositionScale, compositionPosition,
-  compositionCardHeight, compositionRanks, SETTLE_IN, cssEase, settleIn, createCosmos,
-  floatOffset, wobbleAngles, glintPosition, GLINT_SWEEP, createStars, depthDim, DEPTH_DIM,
-  STAR_LAYERS, createStarLayer,
+  ROW_DEPTH, CARD_RATIO, DIAMOND_CELLS, GRID_FIT, SCATTER, gridMetrics, diamondLayout,
+  INTRO, easeInOutQuart, introScale, appearTime, PARALLAX, followPointer, parallaxOffset,
+  speedEnergy, RIPPLE, rippleClock, rippleWeight, rippleHeight,
+  glintPosition, GLINT_SWEEP, createStars, STAR_LAYERS, createStarLayer,
 } from '../demos/05-cosmos/layout.js';
 
 const close = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${a} ≉ ${b}`);
+const SIZES = [[1440, 900], [1920, 1080], [1280, 720], [1024, 768], [768, 1024], [375, 812]];
 
 test('mulberry32 (공통 random.js): 같은 시드면 같은 순서, 0 이상 1 미만', () => {
   const a = mulberry32(5);
@@ -20,75 +21,214 @@ test('mulberry32 (공통 random.js): 같은 시드면 같은 순서, 0 이상 1 
   }
 });
 
-test('COMPOSITION: 레퍼(우표 배치)처럼 5장이 가운데를 둘러싸되 한 무리로 모여 있고, 각자 10~26° 기울어 있다', () => {
-  assert.equal(COMPOSITION.length, 5);
-  for (const slot of COMPOSITION) {
-    assert.ok(Math.abs(slot.sx) <= COMPOSITION_WIDTH && Math.abs(slot.sy) <= 0.8);
-    const degrees = Math.abs((slot.tilt * 180) / Math.PI);
-    assert.ok(degrees >= 8 && degrees <= 28);
-    const distance = Math.hypot(slot.sx, slot.sy);
-    assert.ok(distance > 0.3 && distance < 0.65, `가운데에서 ${distance}`); // 가운데로 모이되 한가운데는 조금 비운다
+test('DIAMOND_CELLS: 레퍼 그리드 9칸 그대로, 가운데(2,2)는 비우고, 1440×900에서 가운데에 가까운 순서', () => {
+  assert.equal(DIAMOND_CELLS.length, 9);
+  const cells = new Set(DIAMOND_CELLS.map((c) => c.join(',')));
+  for (const c of ['2,0', '3,0', '1,1', '4,1', '0,2', '3,2', '1,3', '4,3', '2,4']) assert.ok(cells.has(c), c);
+  assert.ok(!cells.has('2,2'));
+  const { cards } = diamondLayout(1440, 900, 9, 1, 0); // 흐트러뜨리기 전 마름모 기준
+  for (let i = 1; i < cards.length; i++) {
+    assert.ok(Math.hypot(cards[i].x, cards[i].y) >= Math.hypot(cards[i - 1].x, cards[i - 1].y) - 1e-9, `${i}번 순서`);
   }
-  for (let i = 0; i < COMPOSITION.length; i++) {
-    for (let j = i + 1; j < COMPOSITION.length; j++) {
-      const a = COMPOSITION[i];
-      const b = COMPOSITION[j];
-      assert.ok(Math.hypot(a.sx - b.sx, a.sy - b.sy) > 0.25, `${i}-${j} 거의 포개짐`); // 살짝 겹쳐도 포개지진 않게
+});
+
+test('gridMetrics: 1440×900에서 레퍼 간격 식 그대로 — 카드 177×252px, 가로 한 칸 303px, 세로 한 칸 187px', () => {
+  const m = gridMetrics(1440, 900);
+  close(m.cardW, 1440 * 0.135 * (1 + (1440 / 1000 - 1) * -0.2), 1e-9);
+  close(m.cardH, m.cardW * CARD_RATIO, 1e-9);
+  close(m.colStep, 303.15, 0.05);
+  close(m.rowStep, 186.67, 0.05); // 세로 배율은 최대 0.5로 묶인다
+});
+
+test('gridMetrics: 폭 768px 이하는 17% 마름모를 통째로 narrowZoom배 키운다 (레퍼는 이 폭에서 목록 보기라 우리가 정함)', () => {
+  const zoom = GRID_FIT.narrowZoom;
+  assert.ok(zoom > 1); // 사용자 "폰에서도 카드 크게"
+  const m = gridMetrics(375, 812);
+  close(m.cardW, 375 * 0.17 * zoom);
+  close(m.cardH, 375 * 0.17 * zoom * CARD_RATIO);
+  close(m.colStep, 76.71 * zoom, 0.05);  // 17% 마름모의 가로 한 칸 76.71px × 배율
+  close(m.rowStep, 117.18 * zoom, 0.05); // 세로 한 칸 117.18px × 배율
+  close(gridMetrics(768, 1024).cardW, 768 * 0.17 * zoom);
+  assert.ok(gridMetrics(769, 1024).cardW < 769 * 0.17); // 넘으면 레퍼 13.5%, 배율 없음
+});
+
+test('gridMetrics: 카드 크기 배율은 카드만 키우고 칸 간격은 그대로', () => {
+  const base = gridMetrics(1440, 900);
+  const big = gridMetrics(1440, 900, 1.3);
+  close(big.cardW, base.cardW * 1.3);
+  close(big.cardH, base.cardH * 1.3);
+  close(big.colStep, base.colStep);
+  close(big.rowStep, base.rowStep);
+});
+
+// 화면에서 기울어진 카드 네 꼭짓점 (px)
+function corners(card, w, h) {
+  const c = Math.cos(card.tilt);
+  const n = Math.sin(card.tilt);
+  return [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]]
+    .map(([x, y]) => [card.x + x * c - y * n, card.y + x * n + y * c]);
+}
+// 두 볼록 사각형 사이 틈: 각 변의 수직 방향으로 그림자를 비춰서 가장 크게 벌어진 값 (분리축). 음수면 겹침
+function gapBetween(a, b) {
+  let best = -Infinity;
+  for (const shape of [a, b]) {
+    for (let i = 0; i < 4; i++) {
+      const [x1, y1] = shape[i];
+      const [x2, y2] = shape[(i + 1) % 4];
+      const ax = -(y2 - y1);
+      const ay = x2 - x1;
+      const length = Math.hypot(ax, ay);
+      const project = (points) => points.map(([x, y]) => (x * ax + y * ay) / length);
+      const pa = project(a);
+      const pb = project(b);
+      best = Math.max(best, Math.min(...pb) - Math.max(...pa), Math.min(...pa) - Math.max(...pb));
     }
   }
-  // 왼쪽·오른쪽, 위·아래 모두에 카드가 있다 (한쪽으로 쏠리지 않게)
-  assert.ok(COMPOSITION.some((s) => s.sx < -0.2) && COMPOSITION.some((s) => s.sx > 0.2));
-  assert.ok(COMPOSITION.some((s) => s.sy > 0.15) && COMPOSITION.some((s) => s.sy < -0.15));
-});
+  return best;
+}
 
-test('compositionScale·Position·CardHeight: 넓은 화면은 원래 크기, 좁은 화면은 배치 전체를 줄인다. 모두 같은 거리·같은 크기', () => {
-  close(compositionScale(1.6), 1);
-  close(compositionScale(COMPOSITION_WIDTH), 1);
-  close(compositionScale(0.5), 0.5 / COMPOSITION_WIDTH);
-  const view = { fov: 40, aspect: 1.6 };
-  const half = Math.tan((20 * Math.PI) / 180) * ROW_DEPTH;
-  const p = compositionPosition({ sx: 0.5, sy: -0.25 }, 0, view);
-  close(p.x, 0.5 * half);
-  close(p.y, -0.25 * half);
-  close(p.z, -ROW_DEPTH); // 거리를 안 주면 기본 거리
-  // 거리를 주면 그 거리에서 같은 화면 위치에 오도록 (화면 위치 = 공간 위치 ÷ 거리가 같다)
-  const near = compositionPosition({ sx: 0.5, sy: -0.25, depth: 12 }, 0, view);
-  close(near.z, -12);
-  close(near.x / 12, p.x / ROW_DEPTH);
-  close(near.y / 12, p.y / ROW_DEPTH);
-  // 겹칠 때 깜빡이지 않게 순서(0 = 맨 앞)대로 아주 조금씩 뒤로
-  assert.ok(compositionPosition({ sx: 0, sy: 0 }, 3, view).z < p.z);
-  assert.ok(Math.abs(compositionPosition({ sx: 0, sy: 0 }, 4, view).z + ROW_DEPTH) < 0.5);
-  close(compositionCardHeight(view), COMPOSITION_CARD * half);
-  const narrow = { fov: 40, aspect: 0.5 };
-  close(compositionCardHeight(narrow), COMPOSITION_CARD * half * compositionScale(0.5));
-  close(compositionPosition({ sx: 0.5, sy: 0 }, 0, narrow).x, 0.5 * half * compositionScale(0.5));
-});
-
-test('createCosmos: 카드마다 둥실·흔들림 박자만 정한다 (같은 시드면 같은 박자)', () => {
-  const cards = createCosmos(5, 3);
-  assert.deepEqual(cards, createCosmos(5, 3));
-  assert.equal(cards.length, 5);
-  for (const c of cards) {
-    assert.ok(c.floatPeriod >= 14 && c.floatPeriod <= 24);
-    assert.ok(c.wobblePeriodX >= 9 && c.wobblePeriodX <= 17 && c.wobblePeriodY >= 9 && c.wobblePeriodY <= 17);
+test('diamondLayout: 흐트러뜨리고 기울여도 카드끼리 안 겹친다 (기울어진 사각형끼리 4px 넘게), 넓은 화면은 가로로 다 들어오고 폰은 가운데 세 열이 화면 안', () => {
+  for (const [w, h] of SIZES) {
+    const { cards, cardW, cardH } = diamondLayout(w, h);
+    for (let i = 0; i < cards.length; i++) {
+      const reach = (Math.abs(cardW * Math.cos(cards[i].tilt)) + Math.abs(cardH * Math.sin(cards[i].tilt))) / 2;
+      if (w > GRID_FIT.narrowPx) assert.ok(Math.abs(cards[i].x) + reach <= w / 2, `${w}x${h} ${i}번 가로 넘침`);
+      else if (cards[i].cell[0] >= 1 && cards[i].cell[0] <= 3) assert.ok(Math.abs(cards[i].x) < w / 2, `${w}x${h} ${i}번 가운데가 화면 밖`);
+      for (let j = i + 1; j < cards.length; j++) {
+        const gap = gapBetween(corners(cards[i], cardW, cardH), corners(cards[j], cardW, cardH));
+        assert.ok(gap > 4, `${w}x${h} ${i}-${j} 틈 ${gap.toFixed(1)}`);
+      }
+    }
   }
 });
 
-test('floatOffset·wobbleAngles: 세기 0이면 제자리·정면, 아니면 정해진 폭 안에서', () => {
-  const card = createCosmos(1, 9)[0];
-  const still = floatOffset(card, 5, 0);
+test('diamondLayout 흐트러짐: 0이면 정확한 마름모·정면, 기본(1)이면 자리가 크게 어긋나고 기울기 ±8°·비틀기 좌우 ±12°·위아래 ±8° 안', () => {
+  const exact = diamondLayout(1440, 900, 9, 1, 0);
+  const scattered = diamondLayout(1440, 900);
+  let total = 0;
+  for (let i = 0; i < 9; i++) {
+    const [cx, cy] = exact.cards[i].cell;
+    close(exact.cards[i].x, (cx - 2) * exact.colStep);
+    close(exact.cards[i].y, (2 - cy) * exact.rowStep);
+    close(exact.cards[i].tilt, 0);
+    close(exact.cards[i].turnX, 0);
+    close(exact.cards[i].turnY, 0);
+    const s = scattered.cards[i];
+    total += Math.hypot(s.x - exact.cards[i].x, s.y - exact.cards[i].y);
+    const deg = (r) => Math.abs((r * 180) / Math.PI);
+    assert.ok(deg(s.tilt) <= SCATTER.tilt + 1e-9 && deg(s.turnY) <= SCATTER.turnY + 1e-9 && deg(s.turnX) <= SCATTER.turnX + 1e-9);
+  }
+  assert.ok(total / 9 > 60, `평균 ${(total / 9).toFixed(0)}px만 어긋남`); // 사용자 "좀 더 자유분방해도 돼"
+  assert.ok(new Set(scattered.cards.map((c) => Math.sign(c.tilt))).size === 2); // 왼쪽·오른쪽으로 섞여 기운다
+  assert.deepEqual(diamondLayout(1440, 900), scattered); // 같은 화면이면 늘 같은 흐트러짐
+});
+
+test('diamondLayout 흐트러짐: 같은 열 이웃은 서로 반대쪽으로 밀려서 줄이 맞아 보이지 않는다', () => {
+  const exact = diamondLayout(1440, 900, 9, 1, 0);
+  const { cards } = diamondLayout(1440, 900);
+  const shiftX = (cell) => {
+    const i = cards.findIndex((c) => c.cell.join() === cell);
+    return cards[i].x - exact.cards[i].x;
+  };
+  for (const [a, b] of [['1,1', '1,3'], ['3,0', '3,2'], ['2,0', '2,4']]) {
+    assert.ok(Math.sign(shiftX(a)) !== Math.sign(shiftX(b)), `${a}·${b}가 같은 쪽으로`);
+  }
+  // 맨 바깥 열은 화면을 넘지 않게 둘 다 안쪽으로 — 대신 밀리는 양을 크게 다르게
+  assert.ok(Math.abs(shiftX('4,1') - shiftX('4,3')) > 30);
+});
+
+test('diamondLayout: 칸 → 위치 (가운데 칸이 화면 가운데, 위 줄이 위쪽), 개수는 1~9로 가운데 가까운 것부터', () => {
+  const layout = diamondLayout(1440, 900, 9, 1, 0);
+  const top = layout.cards.find((c) => c.cell[0] === 2 && c.cell[1] === 0);
+  close(top.x, 0);
+  close(top.y, 2 * layout.rowStep);
+  const left = layout.cards.find((c) => c.cell[0] === 0 && c.cell[1] === 2);
+  close(left.x, -2 * layout.colStep);
+  close(left.y, 0);
+  assert.equal(diamondLayout(1440, 900, 5).cards.length, 5);
+  assert.deepEqual(diamondLayout(1440, 900, 5, 1, 0).cards, layout.cards.slice(0, 5));
+  assert.equal(diamondLayout(1440, 900, 0).cards.length, 1);
+  assert.equal(diamondLayout(1440, 900, 20).cards.length, 9);
+});
+
+test('introScale·appearTime: 레퍼 등장 — 0.5배에서 3.6초 동안 1배(easeInOutQuart), 카드는 0.3초 뒤부터 0.15초 간격', () => {
+  assert.equal(INTRO.scaleFrom, 0.5);
+  assert.equal(INTRO.duration, 3.6);
+  close(introScale(0), 0.5);
+  close(introScale(1.8), 0.75); // 대칭 이징이라 절반 시간에 절반
+  close(introScale(3.6), 1);
+  close(introScale(Infinity), 1); // 동작 줄이기: 처음부터 제 크기
+  close(easeInOutQuart(0.25), 8 * 0.25 ** 4);
+  close(easeInOutQuart(0.75), 1 - (-2 * 0.75 + 2) ** 4 / 2);
+  let previous = 0;
+  for (let t = 0; t <= 4; t += 0.1) {
+    assert.ok(introScale(t) >= previous - 1e-9);
+    previous = introScale(t);
+  }
+  close(appearTime(0), 0.3);
+  close(appearTime(8), 0.3 + 0.15 * 8);
+});
+
+test('parallaxOffset: 커서 반대쪽으로 밀리고, 가운데에서 먼 카드일수록 많이, 최대 360px', () => {
+  const view = { width: 1440, height: 900 };
+  const half = Math.hypot(1440, 900) / 2;
+  const still = parallaxOffset({ x: 300, y: 100 }, { x: 0, y: 0 }, view);
   close(still.x, 0);
   close(still.y, 0);
-  const flat = wobbleAngles(card, 5, 0);
-  close(flat.rotX, 0);
-  close(flat.rotY, 0);
-  for (let t = 0; t < 60; t += 0.7) {
-    const f = floatOffset(card, t, 1);
-    assert.ok(Math.abs(f.y) <= 0.18 + 1e-9 && Math.abs(f.x) <= 0.08 + 1e-9);
-    const w = wobbleAngles(card, t, 0.2);
-    assert.ok(Math.abs(w.rotX) <= 0.2 + 1e-9 && Math.abs(w.rotY) <= 0.2 + 1e-9);
+  const pointer = { x: 600, y: 0 };
+  const center = parallaxOffset({ x: 0, y: 0 }, pointer, view);
+  const edge = parallaxOffset({ x: 700, y: 0 }, pointer, view);
+  assert.ok(center.x < 0 && edge.x < center.x); // 커서가 오른쪽이면 왼쪽으로, 가장자리 카드가 더 많이
+  close(center.x, PARALLAX.maxOffsetPx * PARALLAX.strength * PARALLAX.minimumInfluence * (600 / half));
+  close(parallaxOffset({ x: half, y: 0 }, { x: half, y: 0 }, view).x, -360);
+  const up = parallaxOffset({ x: 0, y: 200 }, { x: 0, y: 300 }, view);
+  assert.ok(up.y < 0 && Math.abs(up.x) < 1e-9); // 커서가 위면 아래로
+  close(parallaxOffset({ x: 0, y: 0 }, pointer, view, 0).x, 0); // 세기 0이면 안 밀림
+});
+
+test('followPointer: 60fps 한 프레임에 남은 거리의 8%, 30fps면 두 프레임만큼', () => {
+  close(followPointer({ x: 0, y: 0 }, { x: 100, y: -50 }, true, 1 / 60).x, 8);
+  close(followPointer({ x: 0, y: 0 }, { x: 100, y: -50 }, true, 1 / 60).y, -4);
+  close(followPointer({ x: 0, y: 0 }, { x: 100, y: 0 }, true, 1 / 30).x, 100 * (1 - 0.92 ** 2));
+  close(followPointer({ x: 100, y: 0 }, { x: 0, y: 0 }, false, 1 / 60).x, 92); // 커서가 나가면 같은 빠르기로 돌아온다
+});
+
+test('speedEnergy: 느린 스크롤(데드존 45% 아래)은 0, 빠르면 1 가까이, 멈추면 0으로', () => {
+  let energy = 0;
+  for (let i = 0; i < 60; i++) energy = speedEnergy(energy, 0.5, 1 / 60);
+  assert.equal(energy, 0);
+  for (let i = 0; i < 60; i++) energy = speedEnergy(energy, 3, 1 / 60);
+  assert.ok(energy > 0.9, `빠를 때 ${energy}`);
+  for (let i = 0; i < 60; i++) energy = speedEnergy(energy, 0, 1 / 60);
+  assert.equal(energy, 0);
+});
+
+test('RIPPLE: 레퍼 깊이 0.2662를 우리 카드 폭에 맞추고(×1.6/4.67), 시계는 초당 0.16, 가만히 있을 때 12%', () => {
+  close(RIPPLE.depth, (0.2662 * 1.6) / 4.67);
+  assert.equal(RIPPLE.spatialScale, 0.86);
+  close(rippleClock(0, 1), 0.16);
+  close(rippleClock(Math.PI * 2 - 0.06, 1), 0.1); // 한 바퀴(2π)를 넘으면 되돌린다
+  close(rippleWeight(0), 0.12);
+  close(rippleWeight(1), 1);
+  close(rippleWeight(5), 1);
+});
+
+test('rippleHeight: 깊이×가중을 넘지 않고, 카드 테두리는 가운데보다 덜 움직인다', () => {
+  let inner = 0;
+  let border = 0;
+  for (let time = 0; time < 6.3; time += 0.3) {
+    for (let u = 0; u <= 1.0001; u += 0.05) {
+      for (let v = 0; v <= 1.0001; v += 0.05) {
+        const h = Math.abs(rippleHeight(u, v, time, 1.7, 1, 1));
+        assert.ok(h <= 1 + 1e-9);
+        const onBorder = u < 0.01 || u > 0.99 || v < 0.01 || v > 0.99;
+        if (onBorder) border = Math.max(border, h);
+        else if (u > 0.3 && u < 0.7 && v > 0.3 && v < 0.7) inner = Math.max(inner, h);
+      }
+    }
   }
+  assert.ok(border < inner * 0.5, `테두리 ${border} · 가운데 ${inner}`);
+  close(rippleHeight(0.4, 0.6, 1, 2, 0.1, 0.12), rippleHeight(0.4, 0.6, 1, 2, 1, 1) * 0.1 * 0.12);
 });
 
 test('glintPosition: 카메라와 카드 사이(z −3)에서 좌우 ±9·위아래 ±5.5 안으로 8자로 훑는다', () => {
@@ -116,40 +256,13 @@ test('createStars: 같은 시드면 같은 별, 카드보다 훨씬 뒤(거리 3
   }
 });
 
-test('compositionRanks: 가장 가까운 카드가 0번(맨 앞) — 모일 때 더미 맨 앞이 되고, 처음부터 끝까지 앞뒤 순서가 같다', () => {
-  const ranks = compositionRanks(COMPOSITION);
-  assert.deepEqual([...ranks].sort((a, b) => a - b), [0, 1, 2, 3, 4]);
-  for (let i = 0; i < COMPOSITION.length; i++) {
-    for (let j = 0; j < COMPOSITION.length; j++) {
-      if (ranks[i] < ranks[j]) assert.ok(COMPOSITION[i].depth <= COMPOSITION[j].depth);
-    }
-  }
-});
-
-test('COMPOSITION 깊이: 거리는 다 다르지만(14~19) 크기 차이는 ±20% 안 — 레퍼처럼 크기가 고르다', () => {
-  const depths = COMPOSITION.map((s) => s.depth);
-  assert.ok(new Set(depths).size === COMPOSITION.length); // 다 다른 거리 (밝기·시차로 깊이감)
-  // 화면에서의 카드 크기 = 기본 거리 ÷ 거리 → 가장 큰 카드와 작은 카드 차이
-  const sizes = depths.map((d) => ROW_DEPTH / d);
-  const ratio = Math.max(...sizes) / Math.min(...sizes);
-  assert.ok(ratio > 1.1 && ratio < 1.4, `크기 차이 ${ratio}`);
-});
-
-test('depthDim: 가장 가까운 카드는 1, 가장 먼 카드는 1 − DEPTH_DIM.amount, 사이는 그 사이', () => {
-  close(depthDim(DEPTH_DIM.near), 1);
-  close(depthDim(DEPTH_DIM.far), 1 - DEPTH_DIM.amount);
-  const mid = depthDim((DEPTH_DIM.near + DEPTH_DIM.far) / 2);
-  assert.ok(mid < 1 && mid > 1 - DEPTH_DIM.amount);
-});
-
-test('STAR_LAYERS: 먼 별은 가장 먼 카드보다 뒤, 카드 사이 먼지는 카드들 거리에 걸쳐, 앞쪽 먼지는 가장 가까운 카드보다 앞', () => {
-  const depths = COMPOSITION.map((s) => s.depth);
-  assert.ok(STAR_LAYERS.far.zNear > Math.max(...depths));
-  assert.ok(STAR_LAYERS.mid.zNear < Math.min(...depths) && STAR_LAYERS.mid.zFar > Math.max(...depths));
-  assert.ok(STAR_LAYERS.near.zFar < Math.min(...depths));
-  assert.ok(STAR_LAYERS.near.sizeMin > STAR_LAYERS.far.sizeMax - 1); // 앞쪽 먼지는 크게(흐릿한 빛망울)
-  for (const key of ['mid', 'near']) assert.ok(Math.hypot(...STAR_LAYERS[key].drift) > 0); // 먼지는 천천히 떠다닌다
-  assert.equal(Math.hypot(...STAR_LAYERS.far.drift), 0);                                  // 먼 별은 제자리
+test('STAR_LAYERS: 먼 별은 카드 뒤, 카드 사이 먼지는 카드 거리에 걸쳐, 앞쪽 먼지는 카드 앞', () => {
+  assert.ok(STAR_LAYERS.far.zNear > ROW_DEPTH);
+  assert.ok(STAR_LAYERS.mid.zNear < ROW_DEPTH && STAR_LAYERS.mid.zFar > ROW_DEPTH);
+  assert.ok(STAR_LAYERS.near.zFar < ROW_DEPTH);
+  assert.ok(STAR_LAYERS.near.sizeMin > STAR_LAYERS.far.sizeMax - 1);
+  for (const key of ['mid', 'near']) assert.ok(Math.hypot(...STAR_LAYERS[key].drift) > 0);
+  assert.equal(Math.hypot(...STAR_LAYERS.far.drift), 0);
 });
 
 test('createStarLayer: 같은 시드면 같은 배치, 층의 상자·크기 범위 안', () => {
@@ -161,69 +274,6 @@ test('createStarLayer: 같은 시드면 같은 배치, 층의 상자·크기 범
       assert.ok(-s.z >= layer.zNear && -s.z <= layer.zFar);
       assert.ok(Math.abs(s.x) <= layer.halfX && Math.abs(s.y) <= layer.halfY);
       assert.ok(s.size >= layer.sizeMin && s.size <= layer.sizeMax);
-    }
-  }
-});
-
-test('cssEase: CSS 기본 ease(cubic-bezier(0.25, 0.1, 0.25, 1))와 같다 — 0→0, 1→1, 절반 시간에 약 80%', () => {
-  close(cssEase(0), 0);
-  close(cssEase(1), 1);
-  close(cssEase(0.5), 0.8024, 0.005);
-  close(cssEase(0.25), 0.4094, 0.005);
-  let previous = 0;
-  for (let t = 0; t <= 1; t += 0.05) {
-    assert.ok(cssEase(t) >= previous - 1e-9);
-    previous = cssEase(t);
-  }
-});
-
-test('settleIn: 레퍼(Paul Smith Collectors Club) 그대로 — 묶음 전체가 110%에서 1초 동안 100%로 내려앉는다', () => {
-  assert.equal(SETTLE_IN.from, 1.1);
-  assert.equal(SETTLE_IN.duration, 1);
-  close(settleIn(0), 1.1);
-  close(settleIn(1), 1);
-  close(settleIn(5), 1);
-  close(settleIn(Infinity), 1); // 동작 줄이기: 처음부터 제자리
-  close(settleIn(0.5), 1.1 - 0.1 * cssEase(0.5));
-  let previous = Infinity;
-  for (let t = 0; t <= 1.2; t += 0.05) {
-    assert.ok(settleIn(t) <= previous + 1e-9); // 줄어들기만 한다 (날아오거나 커지지 않음)
-    previous = settleIn(t);
-  }
-});
-
-test('모든 카드 쌍이 둥실거려도 화면에서 안 겹친다 — 기울어진 사각형끼리 0.06 넘게 떨어져 있다 (오른쪽·왼쪽 겹침 해제)', () => {
-  // 화면에서 카드 네 꼭짓점 (세로 반폭 단위): 거리만큼 크기가 바뀌고 기울기만큼 돈다
-  const corners = (slot) => {
-    const halfH = (COMPOSITION_CARD / 2) * (ROW_DEPTH / slot.depth);
-    const halfW = halfH * 0.704;
-    const c = Math.cos(slot.tilt);
-    const n = Math.sin(slot.tilt);
-    return [[-halfW, -halfH], [halfW, -halfH], [halfW, halfH], [-halfW, halfH]]
-      .map(([x, y]) => [slot.sx + x * c - y * n, slot.sy + x * n + y * c]);
-  };
-  // 두 볼록 사각형 사이 틈: 각 변의 수직 방향으로 그림자를 비춰서 가장 크게 벌어진 값 (분리축)
-  const gapBetween = (a, b) => {
-    let best = -Infinity;
-    for (const shape of [a, b]) {
-      for (let i = 0; i < 4; i++) {
-        const [x1, y1] = shape[i];
-        const [x2, y2] = shape[(i + 1) % 4];
-        const ax = -(y2 - y1);
-        const ay = x2 - x1;
-        const length = Math.hypot(ax, ay);
-        const project = (points) => points.map(([x, y]) => (x * ax + y * ay) / length);
-        const pa = project(a);
-        const pb = project(b);
-        best = Math.max(best, Math.min(...pb) - Math.max(...pa), Math.min(...pa) - Math.max(...pb));
-      }
-    }
-    return best;
-  };
-  for (let i = 0; i < COMPOSITION.length; i++) {
-    for (let j = i + 1; j < COMPOSITION.length; j++) {
-      const gap = gapBetween(corners(COMPOSITION[i]), corners(COMPOSITION[j]));
-      assert.ok(gap > 0.06, `${i}-${j} 틈 ${gap.toFixed(3)}`); // 둥실 폭(위아래 약 0.03씩)을 넉넉히 넘게
     }
   }
 });

@@ -6,6 +6,7 @@
 //   반짝이 : 카드 표면을 작은 칸으로 나눠 일부 칸에 "알갱이"를 박고, 알갱이마다 법선을 살짝 비튼다.
 //            아주 날카로운 반사라서 각도가 딱 맞는 알갱이만 번쩍 → 반짝반짝 (포일 스티커 원리)
 //   둘 다 코드는 안 가져오고 원리만. 결과는 1보다 밝게(HDR) 더해서 빛 번짐이 번쩍이는 곳만 잡는다
+//   면 일렁임 : 두 물결이 엇갈려 지나가며 카드 면이 깊이 방향으로 살짝 (레퍼 Fiddle.Digital, 원리만). 식은 layout.js rippleHeight
 // ─────────────────────────────────────────────────────────────
 import * as THREE from 'three';
 
@@ -18,6 +19,11 @@ export function addGlint(material) {
     uSparkleAmount: { value: 0.12 },
     uSparkle: { value: 6 },
     uTime: { value: 0 },
+    // 면 일렁임 (레퍼 cardMotion.idle, layout.js rippleHeight와 같은 식)
+    uRippleTime: { value: 0 },
+    uRippleDepth: { value: 0 },   // 카드 단위 깊이 (모이면 0)
+    uRippleWeight: { value: 0.12 },
+    uRippleScale: { value: 0.86 },
   };
 
   // 공통 재질의 셰이더 덧붙이기(휨·뒤집기·둥근 모서리)를 먼저 하고, 그 위에 반짝임을 더한다
@@ -27,6 +33,28 @@ export function addGlint(material) {
   material.onBeforeCompile = (shader, renderer) => {
     baseCompile(shader, renderer);
     Object.assign(shader.uniforms, uniforms);
+    // 면 일렁임: 공통 재질은 #include <begin_vertex> 바로 뒤에 휨·뒤집기를 넣는다 → 그 앞(평평한 카드 기준)에 더한다.
+    // uCardWidth·uCardHeight는 공통 재질이 이미 선언
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+uniform float uRippleTime;
+uniform float uRippleDepth;
+uniform float uRippleWeight;
+uniform float uRippleScale;`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+{
+  // 카드 위 위치 0~1 (휨은 z만 바꾸니 x·y는 평평한 카드 기준)
+  vec2 cardUv = position.xy / vec2(uCardWidth, uCardHeight) + 0.5;
+  vec2 p = cardUv - 0.5;
+  float seed = fract(sin(float(gl_InstanceID) * 12.9898) * 43758.5453) * 6.28318530718; // 카드마다 다른 시작 위상
+  float waveA = sin(dot(p, vec2(3.1, 1.7)) * uRippleScale + uRippleTime + seed);
+  float waveB = sin(dot(p, vec2(-1.35, 3.75)) * uRippleScale - uRippleTime * 2.0 + seed * 1.61803398875);
+  float field = waveA * 0.68 + waveB * 0.32;
+  float interior = smoothstep(0.0, 0.16, cardUv.x) * smoothstep(0.0, 0.16, 1.0 - cardUv.x)
+    * smoothstep(0.0, 0.16, cardUv.y) * smoothstep(0.0, 0.16, 1.0 - cardUv.y);
+  float steady = mix(0.32, 1.0, interior); // 테두리는 덜 움직인다
+  transformed.z += field * steady * (1.0 - 0.3 * dot(p, p)) * uRippleDepth * uRippleWeight;
+}`);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
 uniform vec3 uGlintPos;
