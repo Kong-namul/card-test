@@ -329,6 +329,8 @@ a.bk-side__text:hover { text-decoration: underline; text-underline-offset: 4px; 
   .bk-about-btn { top: 18px; height: 43px; }
   .bk-about-btn__long { display: none; }
   .bk-meta { bottom: 122px; max-width: calc(100% - 64px); }
+  .bk-meta__title { font-size: var(--text-18); }                   /* 레퍼 폰 18px (줄간격 1.2·자간 −0.016em 그대로) */
+  .bk-detail__title { font-size: var(--text-32); line-height: 1; } /* 레퍼 폰 32px · 줄간격 32px */
   .bk-detail { width: 100%; padding: 12vh 28px 8vh; background: none; } /* 상세 카드가 아래에 보이게 */
   .bk-about { padding: 40px 28px 60px; }
 }
