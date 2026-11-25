@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>11 책 캐러셀 · Card Archive</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <!-- Bookish 세트 글꼴: Anybody·Chivo Mono·Inter (Google Fonts), General Sans (Fontshare) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anybody:wght@400&family=Chivo+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500&display=swap">
+  <link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=general-sans@400&display=swap">
+  <link rel="stylesheet" href="../../shared/tokens.css?v=3">
+  <link rel="stylesheet" href="../../shared/base.css?v=5">
+  <link rel="stylesheet" href="../../shared/bookish-frame.css?v=5">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.187.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.187.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div class="bk-page" id="bk-page">
+    <div class="bk-shift">
+      <aside class="bk-side">
+        <a class="bk-side__text" href="../../">Card Archive</a>
+        <span class="bk-side__text">11 — Book Carousel</span>
+      </aside>
+      <main class="bk-stage" id="bk-stage">
+        <canvas id="stage-canvas" aria-label="종이 카드가 책처럼 가로 한 줄로 서 있는 3D 장면. 휠로 한 장씩 넘기고, 누르면 커지면서 오른쪽에 정보가 나와"></canvas>
+        <div class="bk-grain" aria-hidden="true"></div>
+        <div class="bk-meta" id="bk-meta" aria-live="polite">
+          <p class="bk-meta__index" id="bk-meta-index"></p>
+          <h1 class="bk-meta__title" id="bk-meta-title"></h1>
+          <p class="bk-meta__author" id="bk-meta-author"></p>
+          <p class="bk-specs"><span id="bk-meta-year"></span><span class="bk-sep"></span><span id="bk-meta-category"></span></p>
+        </div>
+        <section class="bk-detail" id="bk-detail" aria-label="카드 정보">
+          <p class="bk-detail__index" id="bk-detail-index"></p>
+          <div class="bk-detail__rule"></div>
+          <h2 class="bk-detail__title" id="bk-detail-title"></h2>
+          <p class="bk-specs"><span id="bk-detail-year"></span><span class="bk-sep"></span><span id="bk-detail-category"></span></p>
+          <div class="bk-detail__divider"></div>
+          <p class="bk-detail__blurb" id="bk-detail-blurb"></p>
+          <div class="bk-detail__actions"><button class="bk-pill" id="bk-close" type="button">Close</button></div>
+        </section>
+      </main>
+    </div>
+    <button class="bk-about-btn" id="bk-about-btn" type="button" aria-expanded="false" aria-controls="bk-about">
+      <span>About</span><span class="bk-about-btn__long">&nbsp;this demo</span>
+      <svg viewBox="0 0 14 14" aria-hidden="true"><path d="M1 3.5h12M1 7h12M1 10.5h12" stroke="currentColor" stroke-width="1.2" fill="none"/></svg>
+    </button>
+    <aside class="bk-about" id="bk-about" aria-label="이 데모 소개">
+      <h2 class="bk-about__title">About this demo</h2>
+      <p class="bk-about__body">Bookish(Framer 템플릿)의 3D 책장과 틀을 우리 종이 카드로 다시 만들었어. 사이트 코드에서 숫자만 읽고(간격 3.4, 한 장 0.5초, 상세 0.9배, 아래에서 올라오는 등장), 코드는 새로 썼어.</p>
+      <p class="bk-about__body">휠: 한 장씩 · 카드를 끌면 줄이 밀리고, 빈 곳을 끌면 시점이 돌아서 뒷면이 보여 · 누르면 커지면서 오른쪽에 정보 · ← → 키, Esc로 닫기. 카드 모양(세로형 / 가로형 16:9 / 섞어서 — 카드마다 정한 모양)은 오른쪽 조절 패널에서.</p>
+      <p class="bk-about__links"><a href="https://boookish.framer.website/" target="_blank" rel="noopener">Bookish</a><a href="../../">Archive</a></p>
+    </aside>
+  </div>
+
+  <script type="module" src="./main.js?v=8"></script>
+</body>
+</html>

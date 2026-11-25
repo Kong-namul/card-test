@@ -1,0 +1,346 @@
+/* ─────────────────────────────────────────────────────────────
+ * bookish-frame.css — 11 책 캐러셀의 틀 (왼쪽 띠·오른쪽 위 버튼·소개 패널·왼쪽 아래 정보·상세 패널·낟알 무늬)
+ * 레퍼: Bookish (Framer 템플릿) — 화면에서 잰 위치·크기·자간·전환 값만 옮기고 CSS는 우리가 다시 씀.
+ * 색·글꼴·크기는 tokens.css의 Bookish 세트만. 다른 페이지에서도 이 틀을 그대로 쓸 수 있게 공통에 둔다.
+ * ───────────────────────────────────────────────────────────── */
+.bk-page {
+  --bk-side-w: 75px;                        /* 왼쪽 띠 폭 (폰 40px) */
+  --bk-about-w: 450px;                      /* 소개 패널 폭 = 페이지가 밀리는 거리 */
+  --bk-ease: cubic-bezier(.22, 1, .36, 1);  /* 레퍼 정보·상세 패널 전환 곡선 */
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--bk-side);
+  color: var(--fg-1);
+}
+
+/* 소개 패널이 열리면 왼쪽 띠·장면이 통째로 왼쪽으로 밀린다 */
+.bk-shift {
+  position: absolute;
+  inset: 0;
+  transition: transform 0.55s var(--bk-ease);
+}
+.bk-page.is-about .bk-shift { transform: translateX(calc(-1 * var(--bk-about-w))); }
+
+/* 왼쪽 띠: 세로 글자 (위 아카이브 링크, 아래 데모 이름) */
+.bk-side {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  width: var(--bk-side-w);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 38px 0 30px;
+  background: var(--bk-side);
+}
+.bk-side__text {
+  writing-mode: vertical-rl;
+  font-family: var(--font-bk-mono);
+  font-size: var(--text-12);
+  line-height: 1.2;
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--bk-neon);
+  text-decoration: none;
+}
+a.bk-side__text:hover { text-decoration: underline; text-underline-offset: 4px; }
+
+/* 3D 장면 */
+.bk-stage {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: var(--bk-side-w);
+  overflow: hidden;
+  background: var(--bk-stage);
+}
+.bk-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+.bk-stage canvas:active { cursor: grabbing; }
+.bk-stage.is-pointing canvas { cursor: pointer; }
+
+/* 화면 전체 낟알 무늬 5% (SVG 잡음) */
+.bk-grain {
+  position: absolute;
+  inset: -120px;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+/* 왼쪽 아래 정보: 번호 · 제목 · 이름 · 연도 — 분류 */
+.bk-meta {
+  position: absolute;
+  left: 32px;
+  bottom: 42px;      /* 레퍼와 같은 줄에 오게 (실측: 40px이면 2px 아래) */
+  z-index: 4;
+  max-width: 40%;
+  pointer-events: none;
+  transition: opacity 0.3s var(--bk-ease), transform 0.3s var(--bk-ease);
+}
+.bk-meta.is-changing { opacity: 0; }
+.bk-page.is-detail .bk-meta { opacity: 0; transform: translateY(-10px); }
+.bk-meta::before {
+  content: '';
+  display: block;
+  width: 46px;
+  height: 1px;
+  margin-bottom: 20px;
+  background: currentColor;
+  opacity: 0.3;
+}
+.bk-meta__index {
+  margin: 0;
+  font-family: var(--font-bk-mono);
+  font-size: var(--text-12);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+}
+.bk-meta__title {
+  margin: 14px 0 0;
+  font-family: var(--font-bk-title);
+  font-size: var(--text-24);
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: -0.016em;
+  color: var(--fg-1);
+}
+.bk-meta__author {
+  margin: 14px 0 0;
+  font-family: var(--font-bk-mono);
+  font-size: var(--text-12);
+  line-height: var(--lh-12);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+.bk-specs {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0 0;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+.bk-meta .bk-specs {
+  font-family: var(--font-bk-mono);
+  font-size: var(--text-10);
+  font-weight: 300;
+  line-height: var(--lh-10);
+  letter-spacing: 0.26em;
+}
+.bk-sep {
+  display: block;
+  flex: none;
+  width: 20px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.3;
+}
+
+/* 오른쪽 상세 패널 (카드를 누르면) */
+.bk-detail {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  width: min(420px, 44%);
+  overflow-y: auto;
+  padding: 8vh clamp(28px, 4vw, 56px);
+  background: var(--bk-stage);
+  opacity: 0;
+  transform: translateX(32px);
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.55s var(--bk-ease), transform 0.55s var(--bk-ease), visibility 0s 0.55s;
+}
+.bk-page.is-detail .bk-detail {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  pointer-events: auto;
+  transition: opacity 0.55s var(--bk-ease), transform 0.55s var(--bk-ease);
+}
+.bk-detail__index {
+  margin: 0;
+  font-family: var(--font-bk-ui);
+  font-size: var(--text-11);
+  font-weight: 300;
+  line-height: var(--lh-11);
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+}
+.bk-detail__rule {
+  width: 46px;
+  height: 1px;
+  margin: 22px 0;
+  background: currentColor;
+  opacity: 0.32;
+}
+.bk-detail__title {
+  margin: 0;
+  font-family: var(--font-bk-title);
+  font-size: var(--text-42);
+  font-weight: 400;
+  line-height: var(--lh-42);
+  letter-spacing: -0.016em;
+  color: var(--fg-1);
+}
+.bk-detail .bk-specs {
+  margin-top: 20px;
+  font-family: var(--font-bk-ui);
+  font-size: var(--text-11);
+  font-weight: 300;
+  line-height: var(--lh-11);
+  letter-spacing: 0.26em;
+}
+.bk-detail__divider {
+  height: 1px;
+  margin: 32px 0 28px;
+  background: currentColor;
+  opacity: 0.14;
+}
+.bk-detail__blurb {
+  margin: 0;
+  font-family: var(--font-bk-text);
+  font-size: var(--text-16);
+  line-height: var(--lh-16);
+  letter-spacing: -0.02em;
+  opacity: 0.88;
+}
+.bk-detail__actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 42px;
+}
+.bk-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 13px 24px;
+  border: 1px solid var(--bk-line);
+  border-radius: 100px;
+  background: none;
+  color: inherit;
+  font-family: var(--font-bk-mono);
+  font-size: var(--text-10);
+  line-height: 1;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+.bk-pill:hover { border-color: var(--bk-line-strong); background: var(--bk-fill-hover); }
+
+/* 오른쪽 위 네온 버튼 → 소개 패널 */
+.bk-about-btn {
+  position: absolute;
+  top: 20px;
+  right: 18px;
+  z-index: 20;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 41px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 2px;
+  background: var(--bk-neon);
+  color: var(--bk-ink);
+  font-family: var(--font-bk-mono);
+  font-size: var(--text-12);
+  line-height: 1.6;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.bk-about-btn svg { width: 14px; height: 14px; }
+
+/* 소개 패널: 오른쪽에서 나오고, 페이지는 그만큼 왼쪽으로 밀린다 */
+.bk-about {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 15;
+  width: var(--bk-about-w);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 16px;
+  padding: 40px 48px 60px;
+  background: var(--bk-side);
+  transform: translateX(100%);
+  transition: transform 0.55s var(--bk-ease);
+}
+.bk-page.is-about .bk-about { transform: none; }
+.bk-about__title {
+  margin: 0;
+  font-family: var(--font-bk-mono);
+  font-size: var(--text-26);
+  font-weight: 600;
+  line-height: var(--lh-26);
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  color: var(--fg-1);
+}
+.bk-about__body {
+  margin: 0;
+  font-family: var(--font-bk-ui);
+  font-size: var(--text-16);
+  font-weight: 500;
+  line-height: var(--lh-16);
+  letter-spacing: -0.04em;
+}
+.bk-about__links {
+  display: flex;
+  gap: 24px;
+  margin: 16px 0 0;
+  font-family: var(--font-bk-ui);
+  font-size: var(--text-16);
+  font-weight: 500;
+  line-height: var(--lh-16);
+}
+.bk-about__links a { color: var(--fg-1); text-decoration: none; }
+.bk-about__links a::after { content: ' ↗'; }
+
+/* 조절 패널이 네온 버튼을 가리지 않게 그 아래로 */
+.bk-page ~ .lil-gui.card-panel.autoPlace { top: 72px; }
+
+/* 폰 (레퍼 Framer 폰 크기 809px 이하): 띠 40px, 버튼 "ABOUT", 정보 80px 위로, 상세·소개 패널 화면 가득 */
+@media (max-width: 809px) {
+  .bk-page { --bk-side-w: 40px; --bk-about-w: 100vw; }
+  .bk-side { padding: 34px 0 30px; }
+  .bk-about-btn { top: 18px; height: 43px; }
+  .bk-about-btn__long { display: none; }
+  .bk-meta { bottom: 122px; max-width: calc(100% - 64px); }
+  .bk-detail { width: 100%; padding: 12vh 28px 8vh; background: none; } /* 상세 카드가 아래에 보이게 */
+  .bk-about { padding: 40px 28px 60px; }
+}
+
+/* 상세 위아래 — 카드 위 · 글 아래 (사용자 요청: 폰, 그리고 810~1199px는 세로로 들었을 때. JS가 .is-stack을 붙인다).
+   글은 아래에 붙고 너무 길면 안에서 스크롤, 카드는 글 위 남는 자리에 여백을 두고 다 들어간다 */
+.bk-page.is-stack .bk-detail {
+  top: auto;
+  width: 100%;
+  max-height: 60%;
+  padding: 0 clamp(28px, 4vw, 56px) 8vh;
+  background: none;
+  transform: translateY(32px);
+}
+.bk-page.is-stack.is-detail .bk-detail { transform: none; }

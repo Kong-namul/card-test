@@ -43,4 +43,31 @@
   --lh-22: 32px;
   --lh-18: 28px;
   --lh-14: 20px;
+
+  /* ── Bookish 세트 (11 책 캐러셀) ─────────────────────────────
+     레퍼 Bookish(Framer 템플릿) 틀을 그대로 쓰려고 사용자 허락을 받아 추가 (2026-11-25 "레퍼 세트 그대로 추가").
+     글꼴 넷 다 한글이 없어서 한글은 Pretendard로 대신 보인다 */
+  --font-bk-title: 'Anybody', 'Pretendard Variable', Pretendard, sans-serif;      /* 큰 제목 */
+  --font-bk-mono: 'Chivo Mono', 'Pretendard Variable', Pretendard, monospace;     /* 작은 라벨·버튼·왼쪽 띠 */
+  --font-bk-ui: 'Inter', 'Pretendard Variable', Pretendard, sans-serif;           /* 상세 번호·분류, 소개 본문 */
+  --font-bk-text: 'General Sans', 'Pretendard Variable', Pretendard, sans-serif;  /* 상세 설명 */
+  --text-42: 42px;
+  --text-26: 26px;
+  --text-16: 16px;
+  --text-12: 12px;
+  --text-11: 11px;
+  --text-10: 10px;
+  --lh-42: 41px;   /* 0.98 */
+  --lh-26: 31px;   /* 1.2 */
+  --lh-16: 22px;   /* 1.4 */
+  --lh-12: 14px;   /* 1.2 */
+  --lh-11: 11px;   /* 1 */
+  --lh-10: 12px;   /* 1.2 */
+  --bk-neon: #ECFF5C;                          /* 왼쪽 띠 글자, 오른쪽 위 버튼 */
+  --bk-ink: #000000;                           /* 네온 버튼 위 글자 */
+  --bk-side: #2B2B29;                          /* 왼쪽 띠·바깥·소개 패널 */
+  --bk-stage: #171614;                         /* 3D 장면·상세 패널 */
+  --bk-line: rgba(244, 241, 234, 0.28);        /* 알약 버튼 테두리 */
+  --bk-line-strong: rgba(244, 241, 234, 0.55); /* 알약 버튼 테두리 (마우스 올림) */
+  --bk-fill-hover: rgba(244, 241, 234, 0.08);  /* 알약 버튼 배경 (마우스 올림) */
 }
